@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriFit - Setup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { primary: '#0ea5e9', secondary: '#6366f1', accent: '#f59e0b', dark: '#0f172a', surface: '#1e293b', surfaceLight: '#334155' } } }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+    .card-glow { box-shadow: 0 0 20px rgba(14,165,233,0.1); }
+    .nav-active { border-bottom: 2px solid #0ea5e9; color: #0ea5e9; }
+    .inp { background: rgba(15,23,42,0.6); border: 1px solid rgba(71,85,105,0.5); border-radius: 0.5rem; padding: 0.625rem 1rem; font-size: 0.875rem; color: #e2e8f0; width: 100%; transition: border-color 0.2s; }
+    .inp:focus { outline: none; border-color: #0ea5e9; }
+    .inp::placeholder { color: #64748b; }
+    select.inp { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.5rem; }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen text-gray-200">
+  <!-- Nav -->
+  <nav class="sticky top-0 z-50 bg-dark/90 backdrop-blur-md border-b border-gray-700/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center"><i class="fas fa-person-swimming text-white text-sm"></i></div>
+          <span class="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">TriFit</span>
+        </div>
+        <div class="hidden md:flex items-center gap-1">
+          <a href="index.html" class="px-4 py-5 text-sm font-medium text-gray-400 hover:text-primary"><i class="fas fa-home mr-1.5"></i>Dashboard</a>
+          <a href="analysis.html" class="px-4 py-5 text-sm font-medium text-gray-400 hover:text-primary"><i class="fas fa-chart-line mr-1.5"></i>Analysis</a>
+          <a href="upload.html" class="px-4 py-5 text-sm font-medium text-gray-400 hover:text-primary"><i class="fas fa-cloud-arrow-up mr-1.5"></i>Upload</a>
+          <a href="setup.html" class="nav-active px-4 py-5 text-sm font-medium"><i class="fas fa-gear mr-1.5"></i>Setup</a>
+        </div>
+        <button id="mobBtn" class="md:hidden p-2 text-gray-400 hover:text-white"><i class="fas fa-bars text-lg"></i></button>
+      </div>
+    </div>
+    <div id="mobMenu" class="hidden md:hidden border-t border-gray-700/50 bg-dark/95">
+      <a href="index.html" class="block px-4 py-3 text-sm text-gray-400"><i class="fas fa-home mr-2"></i>Dashboard</a>
+      <a href="analysis.html" class="block px-4 py-3 text-sm text-gray-400"><i class="fas fa-chart-line mr-2"></i>Analysis</a>
+      <a href="upload.html" class="block px-4 py-3 text-sm text-gray-400"><i class="fas fa-cloud-arrow-up mr-2"></i>Upload</a>
+      <a href="setup.html" class="block px-4 py-3 text-sm text-primary border-l-2 border-primary"><i class="fas fa-gear mr-2"></i>Setup</a>
+    </div>
+  </nav>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Setup</h1>
+      <p class="text-gray-400 text-sm">Configure your race details and personal info for a personalized training plan.</p>
+    </div>
+
+    <form id="setupForm" class="space-y-8">
+      <!-- Race Info -->
+      <section class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center"><i class="fas fa-flag-checkered text-primary"></i></div>
+          <div><h2 class="text-base font-semibold text-white">Race Information</h2><p class="text-xs text-gray-400">Your upcoming race details</p></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Race Name</label><input type="text" id="raceName" class="inp" placeholder="e.g. Ironman 70.3 Xiamen"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Race Date</label><input type="date" id="raceDate" class="inp"></div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Race Type</label>
+            <select id="raceType" class="inp">
+              <option value="">Select race type...</option>
+              <option value="sprint">Sprint (750m / 20km / 5km)</option>
+              <option value="olympic">Olympic (1.5km / 40km / 10km)</option>
+              <option value="half">Half Ironman 70.3 (1.9km / 90km / 21.1km)</option>
+              <option value="full">Full Ironman (3.8km / 180km / 42.2km)</option>
+              <option value="super-sprint">Super Sprint (400m / 10km / 2.5km)</option>
+              <option value="custom">Custom Distance</option>
+            </select>
+          </div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Goal Time</label><input type="text" id="goalTime" class="inp" placeholder="e.g. 2:30:00"></div>
+        </div>
+        <div id="customDist" class="hidden mt-5 pt-5 border-t border-gray-700/30">
+          <p class="text-xs text-gray-400 mb-3 font-medium">Custom Distances</p>
+          <div class="grid grid-cols-3 gap-4">
+            <div><label class="block text-[10px] text-gray-500 mb-1">Swim (m)</label><input type="number" id="customSwim" class="inp" placeholder="1500"></div>
+            <div><label class="block text-[10px] text-gray-500 mb-1">Bike (km)</label><input type="number" id="customBike" class="inp" placeholder="40"></div>
+            <div><label class="block text-[10px] text-gray-500 mb-1">Run (km)</label><input type="number" id="customRun" class="inp" placeholder="10"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Personal Details -->
+      <section class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center"><i class="fas fa-user text-secondary"></i></div>
+          <div><h2 class="text-base font-semibold text-white">Personal Details</h2><p class="text-xs text-gray-400">Used to calculate training zones</p></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Name</label><input type="text" id="userName" class="inp" placeholder="Your name"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Age</label><input type="number" id="userAge" class="inp" placeholder="30"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Weight (kg)</label><input type="number" id="userWeight" class="inp" placeholder="70" step="0.1"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Height (cm)</label><input type="number" id="userHeight" class="inp" placeholder="175"></div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Gender</label>
+            <select id="userGender" class="inp"><option value="">Select...</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1.5">Experience Level</label>
+            <select id="userLevel" class="inp"><option value="">Select...</option><option value="beginner">Beginner (First triathlon)</option><option value="intermediate">Intermediate (1-3 races)</option><option value="advanced">Advanced (4+ races)</option><option value="elite">Elite / Competitive</option></select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Training Zones -->
+      <section class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center"><i class="fas fa-heart-pulse text-red-400"></i></div>
+          <div><h2 class="text-base font-semibold text-white">Training Zones</h2><p class="text-xs text-gray-400">Max HR and FTP (optional)</p></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Max Heart Rate (bpm)</label><input type="number" id="maxHR" class="inp" placeholder="Auto from age"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Resting HR (bpm)</label><input type="number" id="restHR" class="inp" placeholder="e.g. 55"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">FTP - Bike (watts)</label><input type="number" id="ftp" class="inp" placeholder="e.g. 200"></div>
+        </div>
+        <div id="zonePreview" class="hidden mt-5 pt-5 border-t border-gray-700/30">
+          <p class="text-xs text-gray-400 mb-3 font-medium">Calculated HR Zones</p>
+          <div class="grid grid-cols-5 gap-2" id="zoneDisplay"></div>
+        </div>
+      </section>
+
+      <!-- Fitness Benchmarks -->
+      <section class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center"><i class="fas fa-gauge-high text-accent"></i></div>
+          <div><h2 class="text-base font-semibold text-white">Current Fitness (Optional)</h2><p class="text-xs text-gray-400">Recent personal bests</p></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Swim 100m Pace</label><input type="text" id="swimPace" class="inp" placeholder="e.g. 1:50"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Bike Avg Speed (km/h)</label><input type="number" id="bikeSpeed" class="inp" placeholder="e.g. 30" step="0.1"></div>
+          <div><label class="block text-xs font-medium text-gray-400 mb-1.5">Run 1km Pace</label><input type="text" id="runPace" class="inp" placeholder="e.g. 5:30"></div>
+        </div>
+      </section>
+
+      <!-- Save -->
+      <div class="flex items-center gap-4">
+        <button type="submit" class="bg-primary hover:bg-primary/80 text-white font-semibold px-8 py-3 rounded-xl transition-colors text-sm"><i class="fas fa-save mr-2"></i>Save Settings</button>
+        <button type="button" id="resetBtn" class="bg-surfaceLight hover:bg-surfaceLight/80 text-gray-300 font-semibold px-6 py-3 rounded-xl transition-colors text-sm"><i class="fas fa-rotate-left mr-2"></i>Reset</button>
+        <span id="saveMsg" class="text-xs text-green-400 hidden"><i class="fas fa-check mr-1"></i>Saved!</span>
+      </div>
+    </form>
+  </main>
+
+  <footer class="mt-16 border-t border-gray-700/50 bg-dark/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between text-xs text-gray-500">
+      <span>&copy; 2026 TriFit. Built for athletes.</span>
+      <span>Powered by <i class="fas fa-heart text-red-400 mx-1"></i> &amp; data</span>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('mobBtn').addEventListener('click', () => document.getElementById('mobMenu').classList.toggle('hidden'));
+    document.getElementById('raceType').addEventListener('change', e => document.getElementById('customDist').classList.toggle('hidden', e.target.value !== 'custom'));
+
+    document.getElementById('maxHR').addEventListener('input', calcZones);
+    function calcZones() {
+      const hr = parseInt(document.getElementById('maxHR').value);
+      if (!hr) { document.getElementById('zonePreview').classList.add('hidden'); return; }
+      document.getElementById('zonePreview').classList.remove('hidden');
+      const z = [
+        { n:'Z1', l:'Recovery', p:[.50,.60], c:'gray' },
+        { n:'Z2', l:'Endurance', p:[.60,.70], c:'green' },
+        { n:'Z3', l:'Tempo', p:[.70,.80], c:'yellow' },
+        { n:'Z4', l:'Threshold', p:[.80,.90], c:'orange' },
+        { n:'Z5', l:'Max', p:[.90,1], c:'red' },
+      ];
+      document.getElementById('zoneDisplay').innerHTML = z.map(x => `<div class="text-center"><div class="bg-${x.c}-500/20 rounded-lg p-2"><p class="text-xs font-bold text-white">${x.n}</p><p class="text-[10px] text-gray-400">${x.l}</p><p class="text-xs font-semibold text-white mt-1">${Math.round(hr*x.p[0])}-${Math.round(hr*x.p[1])}</p><p class="text-[10px] text-gray-500">bpm</p></div></div>`).join('');
+    }
+
+    // Load saved
+    function load() {
+      const r = JSON.parse(localStorage.getItem('trifit_race') || '{}');
+      const p = JSON.parse(localStorage.getItem('trifit_profile') || '{}');
+      if(r.name) document.getElementById('raceName').value = r.name;
+      if(r.date) document.getElementById('raceDate').value = r.date;
+      if(r.type) document.getElementById('raceType').value = r.type;
+      if(r.goalTime) document.getElementById('goalTime').value = r.goalTime;
+      if(p.name) document.getElementById('userName').value = p.name;
+      if(p.age) document.getElementById('userAge').value = p.age;
+      if(p.weight) document.getElementById('userWeight').value = p.weight;
+      if(p.height) document.getElementById('userHeight').value = p.height;
+      if(p.gender) document.getElementById('userGender').value = p.gender;
+      if(p.level) document.getElementById('userLevel').value = p.level;
+      if(p.maxHR) { document.getElementById('maxHR').value = p.maxHR; calcZones(); }
+      if(p.restHR) document.getElementById('restHR').value = p.restHR;
+      if(p.ftp) document.getElementById('ftp').value = p.ftp;
+      if(p.swimPace) document.getElementById('swimPace').value = p.swimPace;
+      if(p.bikeSpeed) document.getElementById('bikeSpeed').value = p.bikeSpeed;
+      if(p.runPace) document.getElementById('runPace').value = p.runPace;
+    }
+    load();
+
+    // Save
+    document.getElementById('setupForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const race = { name: document.getElementById('raceName').value, date: document.getElementById('raceDate').value, type: document.getElementById('raceType').value, goalTime: document.getElementById('goalTime').value };
+      if (race.type === 'custom') { race.customSwim = document.getElementById('customSwim').value; race.customBike = document.getElementById('customBike').value; race.customRun = document.getElementById('customRun').value; }
+      const profile = { name: document.getElementById('userName').value, age: document.getElementById('userAge').value, weight: document.getElementById('userWeight').value, height: document.getElementById('userHeight').value, gender: document.getElementById('userGender').value, level: document.getElementById('userLevel').value, maxHR: document.getElementById('maxHR').value, restHR: document.getElementById('restHR').value, ftp: document.getElementById('ftp').value, swimPace: document.getElementById('swimPace').value, bikeSpeed: document.getElementById('bikeSpeed').value, runPace: document.getElementById('runPace').value };
+      localStorage.setItem('trifit_race', JSON.stringify(race));
+      localStorage.setItem('trifit_profile', JSON.stringify(profile));
+      const msg = document.getElementById('saveMsg');
+      msg.classList.remove('hidden');
+      setTimeout(() => msg.classList.add('hidden'), 3000);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if (confirm('Reset all settings? This cannot be undone.')) {
+        localStorage.removeItem('trifit_race');
+        localStorage.removeItem('trifit_profile');
+        document.getElementById('setupForm').reset();
+        document.getElementById('zonePreview').classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

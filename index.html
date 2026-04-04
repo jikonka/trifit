@@ -1,1 +1,397 @@
-<h1>hello trifit</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriFit - Triathlon Training Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#0ea5e9',
+            secondary: '#6366f1',
+            accent: '#f59e0b',
+            dark: '#0f172a',
+            surface: '#1e293b',
+            surfaceLight: '#334155',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+    .card-glow { box-shadow: 0 0 20px rgba(14, 165, 233, 0.1); }
+    .card-glow:hover { box-shadow: 0 0 30px rgba(14, 165, 233, 0.2); }
+    .chat-container { height: 320px; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .pulse-dot { animation: pulse-dot 1.5s infinite; }
+    .nav-active { border-bottom: 2px solid #0ea5e9; color: #0ea5e9; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen text-gray-200">
+
+  <!-- Navigation -->
+  <nav class="sticky top-0 z-50 bg-dark/90 backdrop-blur-md border-b border-gray-700/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+            <i class="fas fa-person-swimming text-white text-sm"></i>
+          </div>
+          <span class="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">TriFit</span>
+        </div>
+        <!-- Nav Links -->
+        <div class="hidden md:flex items-center gap-1">
+          <a href="index.html" class="nav-active px-4 py-5 text-sm font-medium transition-colors hover:text-primary">
+            <i class="fas fa-home mr-1.5"></i>Dashboard
+          </a>
+          <a href="analysis.html" class="px-4 py-5 text-sm font-medium text-gray-400 transition-colors hover:text-primary">
+            <i class="fas fa-chart-line mr-1.5"></i>Analysis
+          </a>
+          <a href="upload.html" class="px-4 py-5 text-sm font-medium text-gray-400 transition-colors hover:text-primary">
+            <i class="fas fa-cloud-arrow-up mr-1.5"></i>Upload
+          </a>
+          <a href="setup.html" class="px-4 py-5 text-sm font-medium text-gray-400 transition-colors hover:text-primary">
+            <i class="fas fa-gear mr-1.5"></i>Setup
+          </a>
+        </div>
+        <!-- Mobile Menu Button -->
+        <button id="mobileMenuBtn" class="md:hidden p-2 text-gray-400 hover:text-white">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+      </div>
+    </div>
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden md:hidden border-t border-gray-700/50 bg-dark/95">
+      <a href="index.html" class="block px-4 py-3 text-sm text-primary border-l-2 border-primary"><i class="fas fa-home mr-2"></i>Dashboard</a>
+      <a href="analysis.html" class="block px-4 py-3 text-sm text-gray-400 hover:text-primary"><i class="fas fa-chart-line mr-2"></i>Analysis</a>
+      <a href="upload.html" class="block px-4 py-3 text-sm text-gray-400 hover:text-primary"><i class="fas fa-cloud-arrow-up mr-2"></i>Upload</a>
+      <a href="setup.html" class="block px-4 py-3 text-sm text-gray-400 hover:text-primary"><i class="fas fa-gear mr-2"></i>Setup</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Race Countdown Section -->
+    <section class="mb-8">
+      <div class="bg-surface rounded-2xl p-6 card-glow border border-gray-700/50 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full"></div>
+        <div class="relative">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p class="text-xs uppercase tracking-widest text-primary font-semibold mb-1">Next Race</p>
+              <h2 class="text-2xl md:text-3xl font-bold text-white mb-1" id="raceName">Olympic Triathlon</h2>
+              <p class="text-gray-400 text-sm" id="raceDate"><i class="fas fa-calendar-day mr-1.5"></i>No race date set — <a href="setup.html" class="text-primary hover:underline">Set up your race</a></p>
+            </div>
+            <div class="flex gap-3" id="countdownDisplay">
+              <div class="bg-dark/60 rounded-xl px-4 py-3 text-center min-w-[70px]">
+                <span class="block text-2xl md:text-3xl font-bold text-white" id="countDays">--</span>
+                <span class="text-xs text-gray-400 uppercase">Days</span>
+              </div>
+              <div class="bg-dark/60 rounded-xl px-4 py-3 text-center min-w-[70px]">
+                <span class="block text-2xl md:text-3xl font-bold text-white" id="countHours">--</span>
+                <span class="text-xs text-gray-400 uppercase">Hours</span>
+              </div>
+              <div class="bg-dark/60 rounded-xl px-4 py-3 text-center min-w-[70px]">
+                <span class="block text-2xl md:text-3xl font-bold text-white" id="countMins">--</span>
+                <span class="text-xs text-gray-400 uppercase">Mins</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two Column Layout: Training Plans + AI Chat -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Training Plans (Left 2 cols) -->
+      <div class="lg:col-span-2 space-y-8">
+
+        <!-- Today's Training -->
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-2 h-2 rounded-full bg-green-400 pulse-dot"></div>
+            <h3 class="text-lg font-semibold text-white">Today's Training</h3>
+            <span class="text-xs text-gray-500 ml-auto" id="todayDate"></span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" id="todayTraining">
+            <!-- Placeholder cards -->
+            <div class="bg-surface rounded-xl p-5 border border-gray-700/50 card-glow">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <i class="fas fa-person-swimming text-blue-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-white">Swim</p>
+                  <p class="text-xs text-gray-400">Endurance</p>
+                </div>
+              </div>
+              <p class="text-sm text-gray-300 mb-3">2000m easy pace with 4×100m drills</p>
+              <div class="flex items-center justify-between text-xs text-gray-500">
+                <span><i class="fas fa-clock mr-1"></i>45 min</span>
+                <span><i class="fas fa-fire mr-1"></i>Zone 2</span>
+              </div>
+            </div>
+            <div class="bg-surface rounded-xl p-5 border border-gray-700/50 card-glow">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                  <i class="fas fa-person-running text-green-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-white">Run</p>
+                  <p class="text-xs text-gray-400">Recovery</p>
+                </div>
+              </div>
+              <p class="text-sm text-gray-300 mb-3">30min easy jog + 5min cooldown stretch</p>
+              <div class="flex items-center justify-between text-xs text-gray-500">
+                <span><i class="fas fa-clock mr-1"></i>35 min</span>
+                <span><i class="fas fa-fire mr-1"></i>Zone 1-2</span>
+              </div>
+            </div>
+            <div class="bg-surface rounded-xl p-5 border border-gray-700/50 card-glow opacity-60">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                  <i class="fas fa-dumbbell text-yellow-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-white">Strength</p>
+                  <p class="text-xs text-gray-400">Optional</p>
+                </div>
+              </div>
+              <p class="text-sm text-gray-300 mb-3">Core & hip stability — 3 sets × 12 reps</p>
+              <div class="flex items-center justify-between text-xs text-gray-500">
+                <span><i class="fas fa-clock mr-1"></i>20 min</span>
+                <span><i class="fas fa-fire mr-1"></i>Low</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- This Week's Plan -->
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-calendar-week text-primary"></i>
+            <h3 class="text-lg font-semibold text-white">This Week's Plan</h3>
+          </div>
+          <div class="bg-surface rounded-xl border border-gray-700/50 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-dark/50 text-gray-400 uppercase text-xs tracking-wider">
+                  <th class="text-left px-4 py-3">Day</th>
+                  <th class="text-left px-4 py-3">Swim</th>
+                  <th class="text-left px-4 py-3">Bike</th>
+                  <th class="text-left px-4 py-3">Run</th>
+                  <th class="text-left px-4 py-3">Other</th>
+                </tr>
+              </thead>
+              <tbody id="weekPlan">
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Mon</td>
+                  <td class="px-4 py-3 text-blue-400">2000m Easy</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-green-400">30min Easy</td>
+                  <td class="px-4 py-3 text-yellow-400">Core</td>
+                </tr>
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Tue</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-orange-400">60min Z2-Z3</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-yellow-400">Yoga</td>
+                </tr>
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Wed</td>
+                  <td class="px-4 py-3 text-blue-400">2500m Intervals</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-green-400">45min Tempo</td>
+                  <td class="px-4 py-3 text-gray-500">—</td>
+                </tr>
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Thu</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-orange-400">90min Long Ride</td>
+                  <td class="px-4 py-3 text-green-400">20min Brick Run</td>
+                  <td class="px-4 py-3 text-gray-500">—</td>
+                </tr>
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Fri</td>
+                  <td class="px-4 py-3 text-blue-400">1500m Drills</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-yellow-400">Strength</td>
+                </tr>
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Sat</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-orange-400">120min Endurance</td>
+                  <td class="px-4 py-3 text-green-400">40min Long Run</td>
+                  <td class="px-4 py-3 text-gray-500">—</td>
+                </tr>
+                <tr class="border-t border-gray-700/30 hover:bg-surfaceLight/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-white">Sun</td>
+                  <td class="px-4 py-3 text-blue-400">OWS 2000m</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-gray-500">Rest</td>
+                  <td class="px-4 py-3 text-yellow-400">Stretch</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- AI Chat (Right col) -->
+      <div class="lg:col-span-1">
+        <div class="sticky top-24">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-robot text-secondary"></i>
+            <h3 class="text-lg font-semibold text-white">AI Coach</h3>
+            <span class="text-[10px] bg-secondary/20 text-secondary px-2 py-0.5 rounded-full ml-1">Beta</span>
+          </div>
+          <div class="bg-surface rounded-xl border border-gray-700/50 overflow-hidden card-glow">
+            <!-- Chat Messages -->
+            <div class="chat-container overflow-y-auto p-4 space-y-4 scrollbar-thin" id="chatMessages">
+              <!-- AI welcome message -->
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i class="fas fa-robot text-secondary text-xs"></i>
+                </div>
+                <div class="bg-dark/60 rounded-xl rounded-tl-none px-4 py-3 max-w-[85%]">
+                  <p class="text-sm text-gray-300">Hey! 👋 I'm your AI triathlon coach. Ask me about your training plan, race strategy, pacing, or nutrition.</p>
+                </div>
+              </div>
+              <!-- Sample user message -->
+              <div class="flex gap-3 justify-end">
+                <div class="bg-primary/20 rounded-xl rounded-tr-none px-4 py-3 max-w-[85%]">
+                  <p class="text-sm text-gray-200">What should my race-day nutrition plan look like?</p>
+                </div>
+              </div>
+              <!-- AI response -->
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i class="fas fa-robot text-secondary text-xs"></i>
+                </div>
+                <div class="bg-dark/60 rounded-xl rounded-tl-none px-4 py-3 max-w-[85%]">
+                  <p class="text-sm text-gray-300">Great question! For an Olympic distance, aim for:<br><br>🏊 <strong>Pre-swim:</strong> 200-300 cal breakfast 2-3h before<br>🚴 <strong>Bike:</strong> 60g carbs/hr — gels + electrolytes<br>🏃 <strong>Run:</strong> Small sips of sports drink at aid stations<br><br>Want me to create a detailed nutrition timeline?</p>
+                </div>
+              </div>
+            </div>
+            <!-- Chat Input -->
+            <div class="border-t border-gray-700/50 p-3">
+              <div class="flex gap-2">
+                <input type="text" id="chatInput" placeholder="Ask your AI coach..." class="flex-1 bg-dark/60 text-sm text-gray-200 px-4 py-2.5 rounded-lg border border-gray-600/50 focus:outline-none focus:border-primary/50 placeholder-gray-500">
+                <button id="chatSend" class="bg-primary hover:bg-primary/80 text-white px-4 py-2.5 rounded-lg transition-colors">
+                  <i class="fas fa-paper-plane text-sm"></i>
+                </button>
+              </div>
+              <p class="text-[10px] text-gray-500 mt-2 text-center">AI Coach is a mockup — real AI integration coming soon</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-16 border-t border-gray-700/50 bg-dark/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between text-xs text-gray-500">
+      <span>© 2026 TriFit. Built for athletes.</span>
+      <span>Powered by <i class="fas fa-heart text-red-400 mx-1"></i> & data</span>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+      document.getElementById('mobileMenu').classList.toggle('hidden');
+    });
+
+    // Set today's date
+    const today = new Date();
+    document.getElementById('todayDate').textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+    // Load race data from localStorage (set via Setup page)
+    function loadRaceData() {
+      const raceData = JSON.parse(localStorage.getItem('trifit_race') || 'null');
+      if (raceData && raceData.date) {
+        const raceDate = new Date(raceData.date + 'T00:00:00');
+        document.getElementById('raceName').textContent = raceData.name || 'My Triathlon';
+        document.getElementById('raceDate').innerHTML = `<i class="fas fa-calendar-day mr-1.5"></i>${raceDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+        updateCountdown(raceDate);
+        setInterval(() => updateCountdown(raceDate), 60000);
+      }
+    }
+
+    function updateCountdown(raceDate) {
+      const now = new Date();
+      const diff = raceDate - now;
+      if (diff <= 0) {
+        document.getElementById('countDays').textContent = '0';
+        document.getElementById('countHours').textContent = '0';
+        document.getElementById('countMins').textContent = '0';
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      document.getElementById('countDays').textContent = days;
+      document.getElementById('countHours').textContent = hours;
+      document.getElementById('countMins').textContent = mins;
+    }
+
+    loadRaceData();
+
+    // Chat mockup interaction
+    document.getElementById('chatSend').addEventListener('click', sendMessage);
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      const chatMessages = document.getElementById('chatMessages');
+
+      // Add user message
+      chatMessages.innerHTML += `
+        <div class="flex gap-3 justify-end">
+          <div class="bg-primary/20 rounded-xl rounded-tr-none px-4 py-3 max-w-[85%]">
+            <p class="text-sm text-gray-200">${msg}</p>
+          </div>
+        </div>`;
+
+      input.value = '';
+
+      // Simulate AI typing
+      setTimeout(() => {
+        chatMessages.innerHTML += `
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <i class="fas fa-robot text-secondary text-xs"></i>
+            </div>
+            <div class="bg-dark/60 rounded-xl rounded-tl-none px-4 py-3 max-w-[85%]">
+              <p class="text-sm text-gray-300">Thanks for your message! 🏊‍♂️ AI coaching is coming soon. For now, check your training plan on the left and keep up the great work!</p>
+            </div>
+          </div>`;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }, 800);
+
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  </script>
+</body>
+</html>
