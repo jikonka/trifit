@@ -125,6 +125,56 @@
             <h3 class="text-lg font-semibold text-white">Today's Training</h3>
             <span class="text-xs text-gray-500 ml-auto" id="todayDate"></span>
           </div>
+
+          <!-- Weather Card -->
+          <div id="weatherCard" class="mb-4 bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
+            <div id="weatherLoading" class="flex items-center gap-3 text-sm text-gray-400">
+              <i class="fas fa-spinner fa-spin text-primary"></i>
+              <span>Loading weather data...</span>
+            </div>
+            <div id="weatherContent" class="hidden">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div class="text-center">
+                    <img id="weatherIcon" src="" alt="weather" class="w-12 h-12 mx-auto">
+                    <p class="text-[10px] text-gray-400 mt-0.5 capitalize" id="weatherDesc">--</p>
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-white"><span id="weatherTemp">--</span>°C</p>
+                    <p class="text-xs text-gray-400"><i class="fas fa-map-pin mr-1"></i><span id="weatherCity">--</span></p>
+                  </div>
+                </div>
+                <div class="flex gap-5 text-xs text-gray-400">
+                  <div class="text-center">
+                    <i class="fas fa-droplet text-blue-400 mb-1 block"></i>
+                    <p class="font-medium text-white" id="weatherHumidity">--%</p>
+                    <p class="text-[10px]">Humidity</p>
+                  </div>
+                  <div class="text-center">
+                    <i class="fas fa-wind text-cyan-400 mb-1 block"></i>
+                    <p class="font-medium text-white" id="weatherWind">-- m/s</p>
+                    <p class="text-[10px]">Wind</p>
+                  </div>
+                  <div class="text-center">
+                    <i class="fas fa-temperature-half text-orange-400 mb-1 block"></i>
+                    <p class="font-medium text-white" id="weatherFeels">--°C</p>
+                    <p class="text-[10px]">Feels Like</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Rain warning banner -->
+              <div id="rainWarning" class="hidden mt-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-2.5 flex items-center gap-2">
+                <i class="fas fa-cloud-rain text-yellow-400"></i>
+                <p class="text-xs text-yellow-300" id="rainWarningText">Rain detected — outdoor training may be affected.</p>
+              </div>
+            </div>
+            <div id="weatherError" class="hidden flex items-center gap-3 text-sm">
+              <i class="fas fa-triangle-exclamation text-yellow-400"></i>
+              <span class="text-gray-400" id="weatherErrorMsg">Weather unavailable</span>
+              <button onclick="loadWeather()" class="text-primary text-xs hover:underline ml-auto"><i class="fas fa-rotate-right mr-1"></i>Retry</button>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" id="todayTraining">
             <!-- Placeholder cards -->
             <div class="bg-surface rounded-xl p-5 border border-gray-700/50 card-glow">
@@ -353,6 +403,116 @@
 
     loadRaceData();
 
+    // ===== Weather (via backend proxy — API key never touches the browser) =====
+    // In production, set this to your Render.com URL, e.g. 'https://trifit-api.onrender.com'
+    const WEATHER_API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3001'
+      : 'https://trifit-api.onrender.com';  // TODO: replace with your actual Render URL
+
+    async function loadWeather() {
+      // Try geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+          () => fetchWeatherByCity('Shanghai') // fallback
+        );
+      } else {
+        fetchWeatherByCity('Shanghai');
+      }
+    }
+
+    async function fetchWeatherByCity(city) {
+      try {
+        const res = await fetch(`${WEATHER_API_BASE}/api/weather?city=${encodeURIComponent(city)}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'API error ' + res.status);
+        }
+        const data = await res.json();
+        renderWeather(data);
+      } catch (e) { showWeatherError(e.message); }
+    }
+
+    async function fetchWeather(lat, lon) {
+      try {
+        const res = await fetch(`${WEATHER_API_BASE}/api/weather?lat=${lat}&lon=${lon}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'API error ' + res.status);
+        }
+        const data = await res.json();
+        renderWeather(data);
+      } catch (e) { showWeatherError(e.message); }
+    }
+
+    function renderWeather(data) {
+      document.getElementById('weatherLoading').classList.add('hidden');
+      document.getElementById('weatherContent').classList.remove('hidden');
+      document.getElementById('weatherTemp').textContent = Math.round(data.main.temp);
+      document.getElementById('weatherFeels').textContent = Math.round(data.main.feels_like) + '°C';
+      document.getElementById('weatherHumidity').textContent = data.main.humidity + '%';
+      document.getElementById('weatherWind').textContent = data.wind.speed.toFixed(1) + ' m/s';
+      document.getElementById('weatherCity').textContent = data.name;
+      document.getElementById('weatherDesc').textContent = data.weather[0].description;
+      document.getElementById('weatherIcon').src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+
+      // Check for rain/storm conditions
+      const weatherId = data.weather[0].id;
+      const isRainy = weatherId >= 200 && weatherId < 600; // thunderstorm, drizzle, rain, snow
+      if (isRainy) {
+        applyRainWarning(data.weather[0].description);
+      }
+    }
+
+    function applyRainWarning(desc) {
+      const equipment = JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+      const hasTrainer = equipment.hasTrainer || false;
+      const hasTreadmill = equipment.hasTreadmill || false;
+
+      const warning = document.getElementById('rainWarning');
+      const warningText = document.getElementById('rainWarningText');
+      warning.classList.remove('hidden');
+
+      let msg = `🌧️ ${desc.charAt(0).toUpperCase() + desc.slice(1)} detected. `;
+      const suggestions = [];
+
+      if (!hasTrainer && !hasTreadmill) {
+        msg += 'No indoor equipment found — consider swapping outdoor bike/run for swim or rest.';
+      } else {
+        if (hasTrainer) suggestions.push('bike → indoor trainer');
+        if (hasTreadmill) suggestions.push('run → treadmill');
+        msg += `Indoor alternatives available: ${suggestions.join(', ')}.`;
+      }
+      warningText.textContent = msg;
+
+      // Add rain badges to training cards
+      document.querySelectorAll('#todayTraining > div').forEach(card => {
+        const title = card.querySelector('.text-sm.font-semibold')?.textContent?.toLowerCase() || '';
+        const isBike = title.includes('bike') || title.includes('cycling');
+        const isRun = title.includes('run');
+        if ((isBike && !hasTrainer) || (isRun && !hasTreadmill)) {
+          card.classList.add('border-yellow-500/40');
+          const badge = document.createElement('div');
+          badge.className = 'mt-3 text-[10px] text-yellow-400 bg-yellow-500/10 rounded px-2 py-1 inline-flex items-center gap-1';
+          badge.innerHTML = '<i class="fas fa-cloud-rain"></i> Rain — consider indoor/rest';
+          card.appendChild(badge);
+        } else if ((isBike && hasTrainer) || (isRun && hasTreadmill)) {
+          const badge = document.createElement('div');
+          badge.className = 'mt-3 text-[10px] text-green-400 bg-green-500/10 rounded px-2 py-1 inline-flex items-center gap-1';
+          badge.innerHTML = `<i class="fas fa-house"></i> Rain — move indoors (${isBike ? 'trainer' : 'treadmill'})`;
+          card.appendChild(badge);
+        }
+      });
+    }
+
+    function showWeatherError(msg) {
+      document.getElementById('weatherLoading').classList.add('hidden');
+      document.getElementById('weatherError').classList.remove('hidden');
+      document.getElementById('weatherErrorMsg').textContent = msg;
+    }
+
+    loadWeather();
+
     // Chat mockup interaction
     document.getElementById('chatSend').addEventListener('click', sendMessage);
     document.getElementById('chatInput').addEventListener('keydown', (e) => {
@@ -366,27 +526,32 @@
 
       const chatMessages = document.getElementById('chatMessages');
 
-      // Add user message
-      chatMessages.innerHTML += `
-        <div class="flex gap-3 justify-end">
-          <div class="bg-primary/20 rounded-xl rounded-tr-none px-4 py-3 max-w-[85%]">
-            <p class="text-sm text-gray-200">${msg}</p>
-          </div>
-        </div>`;
+      // User message — use textContent to prevent XSS
+      const userDiv = document.createElement('div');
+      userDiv.className = 'flex gap-3 justify-end';
+      const userBubble = document.createElement('div');
+      userBubble.className = 'bg-primary/20 rounded-xl rounded-tr-none px-4 py-3 max-w-[85%]';
+      const userP = document.createElement('p');
+      userP.className = 'text-sm text-gray-200';
+      userP.textContent = msg;  // Safe: textContent, not innerHTML
+      userBubble.appendChild(userP);
+      userDiv.appendChild(userBubble);
+      chatMessages.appendChild(userDiv);
 
       input.value = '';
 
       // Simulate AI typing
       setTimeout(() => {
-        chatMessages.innerHTML += `
-          <div class="flex gap-3">
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'flex gap-3';
+        aiDiv.innerHTML = `
             <div class="w-8 h-8 rounded-lg bg-secondary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <i class="fas fa-robot text-secondary text-xs"></i>
             </div>
             <div class="bg-dark/60 rounded-xl rounded-tl-none px-4 py-3 max-w-[85%]">
               <p class="text-sm text-gray-300">Thanks for your message! 🏊‍♂️ AI coaching is coming soon. For now, check your training plan on the left and keep up the great work!</p>
-            </div>
-          </div>`;
+            </div>`;
+        chatMessages.appendChild(aiDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
       }, 800);
 

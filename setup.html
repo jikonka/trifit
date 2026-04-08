@@ -140,6 +140,36 @@
         </div>
       </section>
 
+      <!-- Equipment -->
+      <section class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center"><i class="fas fa-warehouse text-green-400"></i></div>
+          <div><h2 class="text-base font-semibold text-white">Indoor Equipment</h2><p class="text-xs text-gray-400">Used to adjust training plans on rainy days</p></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <label class="flex items-center gap-3 bg-dark/40 rounded-lg p-4 cursor-pointer border border-gray-700/30 hover:border-primary/30 transition-colors">
+            <input type="checkbox" id="hasTrainer" class="w-4 h-4 accent-primary rounded">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-bicycle text-orange-400"></i>
+              <div>
+                <p class="text-sm font-medium text-white">Indoor Bike Trainer</p>
+                <p class="text-[10px] text-gray-500">Smart trainer, spin bike, or rollers</p>
+              </div>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 bg-dark/40 rounded-lg p-4 cursor-pointer border border-gray-700/30 hover:border-primary/30 transition-colors">
+            <input type="checkbox" id="hasTreadmill" class="w-4 h-4 accent-primary rounded">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-person-running text-green-400"></i>
+              <div>
+                <p class="text-sm font-medium text-white">Treadmill</p>
+                <p class="text-[10px] text-gray-500">Home or gym treadmill access</p>
+              </div>
+            </div>
+          </label>
+        </div>
+      </section>
+
       <!-- Save -->
       <div class="flex items-center gap-4">
         <button type="submit" class="bg-primary hover:bg-primary/80 text-white font-semibold px-8 py-3 rounded-xl transition-colors text-sm"><i class="fas fa-save mr-2"></i>Save Settings</button>
@@ -179,6 +209,7 @@
     function load() {
       const r = JSON.parse(localStorage.getItem('trifit_race') || '{}');
       const p = JSON.parse(localStorage.getItem('trifit_profile') || '{}');
+      const eq = JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
       if(r.name) document.getElementById('raceName').value = r.name;
       if(r.date) document.getElementById('raceDate').value = r.date;
       if(r.type) document.getElementById('raceType').value = r.type;
@@ -195,6 +226,8 @@
       if(p.swimPace) document.getElementById('swimPace').value = p.swimPace;
       if(p.bikeSpeed) document.getElementById('bikeSpeed').value = p.bikeSpeed;
       if(p.runPace) document.getElementById('runPace').value = p.runPace;
+      if(eq.hasTrainer) document.getElementById('hasTrainer').checked = true;
+      if(eq.hasTreadmill) document.getElementById('hasTreadmill').checked = true;
     }
     load();
 
@@ -206,6 +239,8 @@
       const profile = { name: document.getElementById('userName').value, age: document.getElementById('userAge').value, weight: document.getElementById('userWeight').value, height: document.getElementById('userHeight').value, gender: document.getElementById('userGender').value, level: document.getElementById('userLevel').value, maxHR: document.getElementById('maxHR').value, restHR: document.getElementById('restHR').value, ftp: document.getElementById('ftp').value, swimPace: document.getElementById('swimPace').value, bikeSpeed: document.getElementById('bikeSpeed').value, runPace: document.getElementById('runPace').value };
       localStorage.setItem('trifit_race', JSON.stringify(race));
       localStorage.setItem('trifit_profile', JSON.stringify(profile));
+      const equipment = { hasTrainer: document.getElementById('hasTrainer').checked, hasTreadmill: document.getElementById('hasTreadmill').checked };
+      localStorage.setItem('trifit_equipment', JSON.stringify(equipment));
       const msg = document.getElementById('saveMsg');
       msg.classList.remove('hidden');
       setTimeout(() => msg.classList.add('hidden'), 3000);
@@ -215,6 +250,7 @@
       if (confirm('Reset all settings? This cannot be undone.')) {
         localStorage.removeItem('trifit_race');
         localStorage.removeItem('trifit_profile');
+        localStorage.removeItem('trifit_equipment');
         document.getElementById('setupForm').reset();
         document.getElementById('zonePreview').classList.add('hidden');
       }
