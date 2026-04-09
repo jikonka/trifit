@@ -647,13 +647,18 @@ function sanitizeText(text) {
 async function importFitFile(arrayBuffer, fileName, userId, FitSDK, options = {}) {
   const { Decoder, Stream } = FitSDK;
   const { allowOverwrite = false } = options;
+  const safeFileName = sanitizeText(fileName);
 
   try {
-    // 0. 数据库层去重检查 — 防止同一文件被重复导入
-    const safeFileNameCheck = sanitizeText(fileName);
-    const alreadyExists = await checkFileExists(userId, safeFileNameCheck);
+    // 0. 数据库层去重检查 — 按 source_file 判断，文件名相同即为重复
+    const alreadyExists = await checkFileExists(userId, safeFileName);
     if (alreadyExists && !allowOverwrite) {
-      return { success: false, summary: null, error: 'File already imported: ' + safeFileNameCheck + '. Use overwrite to replace.' };
+      return { success: false, summary: null, error: 'File already imported: ' + safeFileName + '. Use overwrite to replace.' };
+    }
+
+    // 0b. 覆盖模式：先删除旧数据
+    if (alreadyExists && allowOverwrite) {
+      await deleteActivitiesByFile(userId, safeFileName);
     }
 
     // 1. 文件大小校验（最大 50MB）
@@ -693,34 +698,42 @@ async function importFitFile(arrayBuffer, fileName, userId, FitSDK, options = {}
     }
 
     // 6. 存入 Supabase（每条 activity 都记录来源文件名）
-    const safeFileName = sanitizeText(fileName);
+    // 唯一索引 idx_activities_unique_source_file 会在数据库层面防止并发重复
     const savedItems = [];
     for (const item of activities) {
-      if (item.type === 'brick') {
-        item.parent.sourceFile = safeFileName;
-        item.legs.forEach(leg => { leg.sourceFile = safeFileName; });
-        const result = await saveBrickActivity(userId, item.parent, item.legs);
-        savedItems.push({
-          type: 'brick',
-          date: item.parent.date,
-          durationMin: item.parent.durationMin,
-          legsCount: item.legs.length,
-        });
-      } else {
-        item.data.sourceFile = safeFileName;
-        const { data } = await saveActivity(userId, item.data);
-        savedItems.push({
-          type: item.data.activityType,
-          date: item.data.date,
-          durationMin: item.data.durationMin,
-        });
+      try {
+        if (item.type === 'brick') {
+          item.parent.sourceFile = safeFileName;
+          item.legs.forEach(leg => { leg.sourceFile = safeFileName; });
+          const result = await saveBrickActivity(userId, item.parent, item.legs);
+          savedItems.push({
+            type: 'brick',
+            date: item.parent.date,
+            durationMin: item.parent.durationMin,
+            legsCount: item.legs.length,
+          });
+        } else {
+          item.data.sourceFile = safeFileName;
+          const { data } = await saveActivity(userId, item.data);
+          savedItems.push({
+            type: item.data.activityType,
+            date: item.data.date,
+            durationMin: item.data.durationMin,
+          });
+        }
+      } catch (insertErr) {
+        // 唯一索引冲突（PostgreSQL error code 23505）= 并发重复导入
+        if (insertErr.code === '23505') {
+          return { success: false, summary: null, error: 'File already imported (concurrent): ' + safeFileName };
+        }
+        throw insertErr;
       }
     }
 
     return {
       success: true,
       summary: {
-        fileName: sanitizeText(fileName),
+        fileName: safeFileName,
         activitiesCount: savedItems.length,
         items: savedItems,
       },

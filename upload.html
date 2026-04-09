@@ -519,14 +519,6 @@
      */
     async function parseFitFile(fileObj) {
       try {
-        // Step 0: 如果是覆盖模式，先删除旧数据
-        if (fileObj.overwrite && currentUserId) {
-          fileObj.status = 'parsing';
-          fileObj.progress = 10;
-          renderFileList();
-          await deleteActivitiesByFile(currentUserId, fileObj.name);
-        }
-
         // Step 1: 读取文件为 ArrayBuffer
         fileObj.status = 'parsing';
         fileObj.progress = 20;
