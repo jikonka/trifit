@@ -94,7 +94,7 @@ async function signUp(email, password) {
     email,
     password,
     options: {
-      emailRedirectTo: siteBase + '/index.html',
+      emailRedirectTo: siteBase + '/',
     },
   });
   return { data, error };
