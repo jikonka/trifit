@@ -349,6 +349,50 @@ CREATE INDEX IF NOT EXISTS idx_activities_source_file
   ON activities(user_id, source_file);
 ```
 
+### 防重复唯一索引（推荐）
+
+在 SQL Editor 中运行以下 SQL，防止同一个 FIT 文件被多次导入产生重复记录：
+
+```sql
+-- 创建唯一索引：同一用户、同一源文件、同一类型、同一日期只能有一条顶层记录
+-- 注意：source_file 为 NULL 的手动录入活动不受此约束
+CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_unique_source
+  ON activities(user_id, source_file, activity_type, date)
+  WHERE source_file IS NOT NULL AND parent_id IS NULL;
+```
+
+### 清理已有重复数据
+
+如果数据库中已存在重复记录，在创建唯一索引前需要先清理。有两种方式：
+
+**方式 A：通过应用自动清理**（推荐）  
+打开 Upload 页面，页面加载时会自动调用 `deduplicateActivities()` 清理重复数据。
+
+**方式 B：通过 SQL 手动清理**  
+```sql
+-- 查看重复记录（不删除，先预览）
+SELECT source_file, activity_type, date, COUNT(*) as cnt
+FROM activities
+WHERE source_file IS NOT NULL AND parent_id IS NULL
+GROUP BY user_id, source_file, activity_type, date
+HAVING COUNT(*) > 1;
+
+-- 删除重复记录，保留每组最早创建的那条
+DELETE FROM activities
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id,
+      ROW_NUMBER() OVER (
+        PARTITION BY user_id, source_file, activity_type, date
+        ORDER BY created_at ASC
+      ) AS rn
+    FROM activities
+    WHERE source_file IS NOT NULL AND parent_id IS NULL
+  ) sub
+  WHERE rn > 1
+);
+```
+
 ### 说明
 
 - `source_file` 存储经过 `sanitizeText()` 清理后的原始文件名（如 `2026-04-05-run.fit`）

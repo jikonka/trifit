@@ -438,6 +438,13 @@
         return;
       }
 
+      // 并发锁：如果同一文件正在导入中，跳过
+      if (importingFiles.has(file.name)) {
+        showNotification(file.name + ': Import already in progress, skipped', 'error');
+        processFilesSequentially(files, index + 1);
+        return;
+      }
+
       // 检查重复
       if (currentUserId) {
         const exists = await checkFileExists(currentUserId, file.name);
@@ -463,6 +470,9 @@
      * 开始导入单个文件
      */
     function startFileImport(file, overwrite, onComplete) {
+      // 加入并发锁
+      importingFiles.add(file.name);
+
       const fileObj = {
         id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         name: file.name,
@@ -557,6 +567,9 @@
       }
 
       renderFileList();
+
+      // 释放并发锁
+      importingFiles.delete(fileObj.name);
 
       // 继续处理队列中的下一个文件
       if (typeof fileObj.onComplete === 'function') {
@@ -724,6 +737,7 @@
     let selectedType = null;
     let brickLegs = []; // [{type, durationMin, distanceM, avgHr, maxHr, calories, notes}]
     let currentUserId = null;
+    let importingFiles = new Set(); // 防止同一文件并发导入的锁
 
     // Get current user
     (async function initManualEntry() {
@@ -734,6 +748,18 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('actDate').value = today;
         document.getElementById('brickDate').value = today;
+
+        // 自动清理已有的重复数据
+        try {
+          const result = await deduplicateActivities(user.id);
+          if (result.cleaned > 0) {
+            console.log('[Upload] Auto-cleaned', result.cleaned, 'duplicate activities');
+            showNotification('Cleaned ' + result.cleaned + ' duplicate activities', 'success');
+          }
+        } catch (e) {
+          console.warn('[Upload] Deduplication check failed:', e.message);
+        }
+
         await refreshActivitiesList();
       }
     })();

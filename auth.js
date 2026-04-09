@@ -659,6 +659,8 @@ async function importFitFile(arrayBuffer, fileName, userId, FitSDK, options = {}
     // 0b. 覆盖模式：先删除旧数据
     if (alreadyExists && allowOverwrite) {
       await deleteActivitiesByFile(userId, safeFileName);
+      // 等待一小段时间确保删除生效（防止竞态）
+      await new Promise(r => setTimeout(r, 200));
     }
 
     // 1. 文件大小校验（最大 50MB）
@@ -697,8 +699,18 @@ async function importFitFile(arrayBuffer, fileName, userId, FitSDK, options = {}
       return { success: false, summary: null, error: 'No activity data found in FIT file' };
     }
 
+    // 5b. 再次确认删除完成（防止竞态导致重复）
+    const stillExists = await checkFileExists(userId, safeFileName);
+    if (stillExists && !allowOverwrite) {
+      return { success: false, summary: null, error: 'File already imported: ' + safeFileName + '. Use overwrite to replace.' };
+    }
+    if (stillExists && allowOverwrite) {
+      // 二次删除（极端竞态保护）
+      await deleteActivitiesByFile(userId, safeFileName);
+      await new Promise(r => setTimeout(r, 200));
+    }
+
     // 6. 存入 Supabase（每条 activity 都记录来源文件名）
-    // 唯一索引 idx_activities_unique_source_file 会在数据库层面防止并发重复
     const savedItems = [];
     for (const item of activities) {
       try {
@@ -998,8 +1010,9 @@ async function loadUploadedFiles(userId) {
 
 /**
  * 检查某个文件名是否已存在于用户的活动中
+ * 注意：始终会 sanitize fileName，调用方无需预处理
  * @param {string} userId
- * @param {string} fileName - 清理后的文件名
+ * @param {string} fileName - 原始或已清理的文件名（都安全）
  * @returns {Promise<boolean>}
  */
 async function checkFileExists(userId, fileName) {
@@ -1018,6 +1031,69 @@ async function checkFileExists(userId, fileName) {
   } catch (e) {
     console.warn('[auth] checkFileExists failed:', e.message);
     return false;
+  }
+}
+
+/**
+ * 清理已有的重复活动记录
+ * 对于相同 source_file 的顶层记录（parent_id IS NULL），
+ * 只保留最早创建的那一条，删除后续重复的。
+ * Brick 子段通过 CASCADE 自动清理。
+ * 
+ * @param {string} userId
+ * @returns {Promise<{cleaned: number, errors: string[]}>}
+ */
+async function deduplicateActivities(userId) {
+  const errors = [];
+  let totalCleaned = 0;
+
+  try {
+    // 1. 查询所有有 source_file 的顶层记录
+    const { data: allTop, error: queryError } = await _supabase
+      .from('activities')
+      .select('id, source_file, activity_type, date, duration_min, created_at')
+      .eq('user_id', userId)
+      .not('source_file', 'is', null)
+      .is('parent_id', null)
+      .order('created_at', { ascending: true });
+
+    if (queryError) throw queryError;
+    if (!allTop || allTop.length === 0) return { cleaned: 0, errors };
+
+    // 2. 按 (source_file, activity_type, date) 分组，找出重复组
+    const groups = {};
+    for (const row of allTop) {
+      // 使用 source_file + activity_type + date 作为复合去重键
+      const key = `${row.source_file}||${row.activity_type}||${row.date}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(row);
+    }
+
+    // 3. 对于每个有重复的组，保留第一条（最早创建的），删除其余
+    for (const key of Object.keys(groups)) {
+      const group = groups[key];
+      if (group.length <= 1) continue; // 没有重复
+
+      // 保留第一条（已按 created_at ASC 排序）
+      const keep = group[0];
+      const toDelete = group.slice(1);
+
+      for (const dup of toDelete) {
+        try {
+          await deleteActivity(dup.id);
+          totalCleaned++;
+        } catch (delErr) {
+          errors.push('Failed to delete ' + dup.id + ': ' + delErr.message);
+        }
+      }
+    }
+
+    console.log('[auth] Deduplication complete:', totalCleaned, 'duplicates removed');
+    return { cleaned: totalCleaned, errors };
+  } catch (e) {
+    console.error('[auth] deduplicateActivities error:', e.message);
+    errors.push(e.message);
+    return { cleaned: totalCleaned, errors };
   }
 }
 
