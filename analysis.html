@@ -22,6 +22,7 @@
     }
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
@@ -71,7 +72,7 @@
   </nav>
 
   <!-- Main Content -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style="display:none">
 
     <!-- Page Header -->
     <div class="mb-8">
@@ -244,7 +245,13 @@
     </div>
   </footer>
 
+  <script src="auth.js"></script>
   <script>
+    // 认证守卫
+    (async function() {
+      await requireAuth();
+    })();
+
     // Mobile menu
     document.getElementById('mobileMenuBtn').addEventListener('click', () => {
       document.getElementById('mobileMenu').classList.toggle('hidden');

@@ -11,6 +11,7 @@
     }
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
@@ -48,7 +49,7 @@
     </div>
   </nav>
 
-  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style="display:none">
     <div class="mb-8">
       <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Setup</h1>
       <p class="text-gray-400 text-sm">Configure your race details and personal info for a personalized training plan.</p>
@@ -186,7 +187,22 @@
     </div>
   </footer>
 
+  <script src="auth.js"></script>
   <script>
+    // =============================================
+    // 认证守卫 + 初始化
+    // =============================================
+    let currentUser = null;
+
+    (async function init() {
+      currentUser = await requireAuth();
+      if (!currentUser) return; // 已跳转到 login.html
+      await loadFromSupabase();
+    })();
+
+    // =============================================
+    // UI 交互
+    // =============================================
     document.getElementById('mobBtn').addEventListener('click', () => document.getElementById('mobMenu').classList.toggle('hidden'));
     document.getElementById('raceType').addEventListener('change', e => document.getElementById('customDist').classList.toggle('hidden', e.target.value !== 'custom'));
 
@@ -205,15 +221,29 @@
       document.getElementById('zoneDisplay').innerHTML = z.map(x => `<div class="text-center"><div class="bg-${x.c}-500/20 rounded-lg p-2"><p class="text-xs font-bold text-white">${x.n}</p><p class="text-[10px] text-gray-400">${x.l}</p><p class="text-xs font-semibold text-white mt-1">${Math.round(hr*x.p[0])}-${Math.round(hr*x.p[1])}</p><p class="text-[10px] text-gray-500">bpm</p></div></div>`).join('');
     }
 
-    // Load saved
-    function load() {
-      const r = JSON.parse(localStorage.getItem('trifit_race') || '{}');
-      const p = JSON.parse(localStorage.getItem('trifit_profile') || '{}');
-      const eq = JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+    // =============================================
+    // 从 Supabase 加载数据 (fallback localStorage)
+    // =============================================
+    async function loadFromSupabase() {
+      // 优先从 Supabase 加载，失败时 fallback 到 localStorage
+      const r = await loadRace(currentUser.id) || JSON.parse(localStorage.getItem('trifit_race') || '{}');
+      const p = await loadProfile(currentUser.id) || JSON.parse(localStorage.getItem('trifit_profile') || '{}');
+      const eq = await loadEquipment(currentUser.id) || JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+
+      populateForm(r, p, eq);
+    }
+
+    function populateForm(r, p, eq) {
       if(r.name) document.getElementById('raceName').value = r.name;
       if(r.date) document.getElementById('raceDate').value = r.date;
       if(r.type) document.getElementById('raceType').value = r.type;
       if(r.goalTime) document.getElementById('goalTime').value = r.goalTime;
+      if(r.type === 'custom') {
+        document.getElementById('customDist').classList.remove('hidden');
+        if(r.customSwim) document.getElementById('customSwim').value = r.customSwim;
+        if(r.customBike) document.getElementById('customBike').value = r.customBike;
+        if(r.customRun) document.getElementById('customRun').value = r.customRun;
+      }
       if(p.name) document.getElementById('userName').value = p.name;
       if(p.age) document.getElementById('userAge').value = p.age;
       if(p.weight) document.getElementById('userWeight').value = p.weight;
@@ -229,23 +259,92 @@
       if(eq.hasTrainer) document.getElementById('hasTrainer').checked = true;
       if(eq.hasTreadmill) document.getElementById('hasTreadmill').checked = true;
     }
-    load();
 
-    // Save
-    document.getElementById('setupForm').addEventListener('submit', (e) => {
+    // =============================================
+    // 保存 — 写入 Supabase + localStorage + 历史记录
+    // =============================================
+    document.getElementById('setupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const race = { name: document.getElementById('raceName').value, date: document.getElementById('raceDate').value, type: document.getElementById('raceType').value, goalTime: document.getElementById('goalTime').value };
-      if (race.type === 'custom') { race.customSwim = document.getElementById('customSwim').value; race.customBike = document.getElementById('customBike').value; race.customRun = document.getElementById('customRun').value; }
-      const profile = { name: document.getElementById('userName').value, age: document.getElementById('userAge').value, weight: document.getElementById('userWeight').value, height: document.getElementById('userHeight').value, gender: document.getElementById('userGender').value, level: document.getElementById('userLevel').value, maxHR: document.getElementById('maxHR').value, restHR: document.getElementById('restHR').value, ftp: document.getElementById('ftp').value, swimPace: document.getElementById('swimPace').value, bikeSpeed: document.getElementById('bikeSpeed').value, runPace: document.getElementById('runPace').value };
-      localStorage.setItem('trifit_race', JSON.stringify(race));
-      localStorage.setItem('trifit_profile', JSON.stringify(profile));
-      const equipment = { hasTrainer: document.getElementById('hasTrainer').checked, hasTreadmill: document.getElementById('hasTreadmill').checked };
-      localStorage.setItem('trifit_equipment', JSON.stringify(equipment));
-      const msg = document.getElementById('saveMsg');
-      msg.classList.remove('hidden');
-      setTimeout(() => msg.classList.add('hidden'), 3000);
+      if (!currentUser) return;
+
+      const race = {
+        name: document.getElementById('raceName').value,
+        date: document.getElementById('raceDate').value,
+        type: document.getElementById('raceType').value,
+        goalTime: document.getElementById('goalTime').value,
+      };
+      if (race.type === 'custom') {
+        race.customSwim = document.getElementById('customSwim').value;
+        race.customBike = document.getElementById('customBike').value;
+        race.customRun = document.getElementById('customRun').value;
+      }
+
+      const profile = {
+        name: document.getElementById('userName').value,
+        age: document.getElementById('userAge').value,
+        weight: document.getElementById('userWeight').value,
+        height: document.getElementById('userHeight').value,
+        gender: document.getElementById('userGender').value,
+        level: document.getElementById('userLevel').value,
+        maxHR: document.getElementById('maxHR').value,
+        restHR: document.getElementById('restHR').value,
+        ftp: document.getElementById('ftp').value,
+        swimPace: document.getElementById('swimPace').value,
+        bikeSpeed: document.getElementById('bikeSpeed').value,
+        runPace: document.getElementById('runPace').value,
+      };
+
+      const equipment = {
+        hasTrainer: document.getElementById('hasTrainer').checked,
+        hasTreadmill: document.getElementById('hasTreadmill').checked,
+      };
+
+      const saveBtn = document.querySelector('button[type="submit"]');
+      saveBtn.disabled = true;
+      saveBtn.classList.add('opacity-60');
+
+      try {
+        // 并行保存到 Supabase
+        await Promise.all([
+          saveRace(currentUser.id, race),
+          saveProfile(currentUser.id, profile),
+          saveEquipment(currentUser.id, equipment),
+        ]);
+
+        // 并行插入历史记录
+        await Promise.all([
+          insertHistory(currentUser.id, 'race', race),
+          insertHistory(currentUser.id, 'profile', profile),
+          insertHistory(currentUser.id, 'equipment', equipment),
+        ]);
+
+        const msg = document.getElementById('saveMsg');
+        msg.classList.remove('hidden');
+        setTimeout(() => msg.classList.add('hidden'), 3000);
+      } catch (err) {
+        console.error('[setup] Save error:', err);
+        // 即使 Supabase 失败，localStorage 已在 auth.js 的 save* 函数中同步
+        const msg = document.getElementById('saveMsg');
+        msg.classList.remove('hidden');
+        msg.querySelector('i').className = 'fas fa-exclamation-triangle mr-1';
+        msg.textContent = 'Saved locally (cloud sync failed)';
+        msg.classList.remove('text-green-400');
+        msg.classList.add('text-yellow-400');
+        setTimeout(() => {
+          msg.classList.add('hidden');
+          msg.innerHTML = '<i class="fas fa-check mr-1"></i>Saved!';
+          msg.classList.remove('text-yellow-400');
+          msg.classList.add('text-green-400');
+        }, 3000);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-60');
+      }
     });
 
+    // =============================================
+    // 重置
+    // =============================================
     document.getElementById('resetBtn').addEventListener('click', () => {
       if (confirm('Reset all settings? This cannot be undone.')) {
         localStorage.removeItem('trifit_race');

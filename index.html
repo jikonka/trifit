@@ -22,6 +22,7 @@
     }
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
@@ -80,7 +81,7 @@
   </nav>
 
   <!-- Main Content -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style="display:none">
 
     <!-- Race Countdown Section -->
     <section class="mb-8">
@@ -299,9 +300,22 @@
             </table>
           </div>
         </section>
-      </div>
 
-      <!-- AI Chat (Right col) -->
+        <!-- Settings History -->
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-clock-rotate-left text-primary"></i>
+            <h3 class="text-lg font-semibold text-white">Settings History</h3>
+          </div>
+          <div id="historyContainer" class="space-y-3">
+            <div class="bg-surface rounded-xl p-6 border border-gray-700/50 text-center">
+              <i class="fas fa-clock-rotate-left text-2xl text-gray-600 mb-2 block"></i>
+              <p class="text-sm text-gray-500">No settings changes yet</p>
+            </div>
+          </div>
+        </section>
+
+      </div>
       <div class="lg:col-span-1">
         <div class="sticky top-24">
           <div class="flex items-center gap-2 mb-4">
@@ -362,7 +376,19 @@
     </div>
   </footer>
 
+  <script src="auth.js"></script>
   <script>
+    // =============================================
+    // 认证守卫 + 初始化
+    // =============================================
+    let currentUser = null;
+
+    (async function init() {
+      currentUser = await requireAuth();
+      if (!currentUser) return;
+      await loadDashboardData();
+    })();
+
     // Mobile menu toggle
     document.getElementById('mobileMenuBtn').addEventListener('click', () => {
       document.getElementById('mobileMenu').classList.toggle('hidden');
@@ -372,15 +398,27 @@
     const today = new Date();
     document.getElementById('todayDate').textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-    // Load race data from localStorage (set via Setup page)
-    function loadRaceData() {
-      const raceData = JSON.parse(localStorage.getItem('trifit_race') || 'null');
+    // =============================================
+    // 从 Supabase 加载数据 (fallback localStorage)
+    // =============================================
+    async function loadDashboardData() {
+      // 加载比赛数据
+      const raceData = currentUser
+        ? (await loadRace(currentUser.id) || JSON.parse(localStorage.getItem('trifit_race') || 'null'))
+        : JSON.parse(localStorage.getItem('trifit_race') || 'null');
+
       if (raceData && raceData.date) {
         const raceDate = new Date(raceData.date + 'T00:00:00');
         document.getElementById('raceName').textContent = raceData.name || 'My Triathlon';
         document.getElementById('raceDate').innerHTML = `<i class="fas fa-calendar-day mr-1.5"></i>${raceDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
         updateCountdown(raceDate);
         setInterval(() => updateCountdown(raceDate), 60000);
+      }
+
+      // 加载设置历史
+      if (currentUser) {
+        const history = await loadHistory(currentUser.id, 10);
+        renderHistory(history);
       }
     }
 
@@ -401,7 +439,60 @@
       document.getElementById('countMins').textContent = mins;
     }
 
-    loadRaceData();
+    // =============================================
+    // 设置历史记录渲染 (使用 DOM API 防 XSS)
+    // =============================================
+    function renderHistory(items) {
+      const container = document.getElementById('historyContainer');
+      if (!items || items.length === 0) return; // 保持空状态
+
+      container.innerHTML = ''; // 清除空状态
+
+      const iconMap = {
+        race: { icon: 'fa-flag-checkered', color: 'blue' },
+        profile: { icon: 'fa-user', color: 'purple' },
+        equipment: { icon: 'fa-warehouse', color: 'green' },
+      };
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'bg-surface rounded-xl p-4 border border-gray-700/50 card-glow flex items-center gap-4';
+
+        const { icon, color } = iconMap[item.change_type] || { icon: 'fa-gear', color: 'gray' };
+
+        // 图标
+        const iconDiv = document.createElement('div');
+        iconDiv.className = `w-10 h-10 rounded-lg bg-${color}-500/20 flex items-center justify-center flex-shrink-0`;
+        const iconI = document.createElement('i');
+        iconI.className = `fas ${icon} text-${color}-400 text-sm`;
+        iconDiv.appendChild(iconI);
+
+        // 内容
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'flex-1 min-w-0';
+
+        const typeSpan = document.createElement('span');
+        typeSpan.className = `text-[10px] uppercase tracking-wider font-semibold text-${color}-400`;
+        typeSpan.textContent = item.change_type;
+
+        const summaryP = document.createElement('p');
+        summaryP.className = 'text-sm text-gray-300 truncate';
+        summaryP.textContent = historyToSummary(item.change_type, item.snapshot);
+
+        contentDiv.appendChild(typeSpan);
+        contentDiv.appendChild(summaryP);
+
+        // 时间
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'text-xs text-gray-500 flex-shrink-0 whitespace-nowrap';
+        timeSpan.textContent = timeAgo(item.created_at);
+
+        card.appendChild(iconDiv);
+        card.appendChild(contentDiv);
+        card.appendChild(timeSpan);
+        container.appendChild(card);
+      });
+    }
 
     // ===== Weather (via backend proxy — API key never touches the browser) =====
     // Production: Render.com  |  Local dev: localhost:3001
@@ -464,8 +555,14 @@
       }
     }
 
-    function applyRainWarning(desc) {
-      const equipment = JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+    async function applyRainWarning(desc) {
+      // 从 Supabase 加载装备数据 (fallback localStorage)
+      let equipment;
+      if (currentUser) {
+        equipment = await loadEquipment(currentUser.id) || JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+      } else {
+        equipment = JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+      }
       const hasTrainer = equipment.hasTrainer || false;
       const hasTreadmill = equipment.hasTreadmill || false;
 

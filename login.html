@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriFit - Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { primary: '#0ea5e9', secondary: '#6366f1', accent: '#f59e0b', dark: '#0f172a', surface: '#1e293b', surfaceLight: '#334155' } } }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+    .card-glow { box-shadow: 0 0 20px rgba(14,165,233,0.1); }
+    .inp { background: rgba(15,23,42,0.6); border: 1px solid rgba(71,85,105,0.5); border-radius: 0.5rem; padding: 0.625rem 1rem; font-size: 0.875rem; color: #e2e8f0; width: 100%; transition: border-color 0.2s; }
+    .inp:focus { outline: none; border-color: #0ea5e9; }
+    .inp::placeholder { color: #64748b; }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen text-gray-200 flex items-center justify-center px-4">
+
+  <div class="w-full max-w-md">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="w-14 h-14 mx-auto mb-4 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center">
+        <i class="fas fa-person-swimming text-white text-xl"></i>
+      </div>
+      <h1 class="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">TriFit</h1>
+      <p class="text-xs text-gray-500 mt-1">Triathlon Training Hub</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-surface rounded-2xl p-8 border border-gray-700/50 card-glow">
+      <!-- Title -->
+      <h2 id="formTitle" class="text-xl font-bold text-white mb-1">Welcome Back</h2>
+      <p id="formSubtitle" class="text-sm text-gray-400 mb-6">Sign in to your account</p>
+
+      <!-- Error message -->
+      <div id="errorBox" class="hidden mb-4 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 flex items-center gap-2">
+        <i class="fas fa-triangle-exclamation text-red-400 text-sm flex-shrink-0"></i>
+        <p id="errorText" class="text-xs text-red-300"></p>
+      </div>
+
+      <!-- Success message (for email confirmation) -->
+      <div id="successBox" class="hidden mb-4 bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-3 flex items-center gap-2">
+        <i class="fas fa-check-circle text-green-400 text-sm flex-shrink-0"></i>
+        <p id="successText" class="text-xs text-green-300"></p>
+      </div>
+
+      <!-- Lockout warning -->
+      <div id="lockoutBox" class="hidden mb-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 flex items-center gap-2">
+        <i class="fas fa-lock text-yellow-400 text-sm flex-shrink-0"></i>
+        <p id="lockoutText" class="text-xs text-yellow-300"></p>
+      </div>
+
+      <!-- Form -->
+      <form id="authForm" class="space-y-4">
+        <!-- Email -->
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
+          <div class="relative">
+            <input type="email" id="emailInput" class="inp pl-10" placeholder="you@example.com" required autocomplete="email">
+            <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1.5">Password</label>
+          <div class="relative">
+            <input type="password" id="passwordInput" class="inp pl-10 pr-10" placeholder="At least 8 characters" required autocomplete="current-password" minlength="8">
+            <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+              <i class="fas fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Password strength hint (only in signup mode) -->
+        <div id="passwordHint" class="hidden text-[10px] text-gray-500">
+          <span id="hintLength" class="text-red-400"><i class="fas fa-xmark mr-0.5"></i>8+ characters</span>
+          <span class="mx-1.5">•</span>
+          <span id="hintMix" class="text-red-400"><i class="fas fa-xmark mr-0.5"></i>Letters & numbers</span>
+        </div>
+
+        <!-- Submit button -->
+        <button type="submit" id="submitBtn" class="w-full bg-primary hover:bg-primary/80 text-white font-semibold py-3 rounded-xl transition-colors text-sm mt-2">
+          <span id="submitText">Sign In</span>
+          <i id="submitSpinner" class="fas fa-spinner fa-spin ml-2 hidden"></i>
+        </button>
+      </form>
+
+      <!-- Toggle link -->
+      <p class="text-center text-sm text-gray-400 mt-6">
+        <span id="toggleQuestion">Don't have an account?</span>
+        <button id="toggleMode" class="text-primary hover:underline font-medium ml-1">Sign Up</button>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <p class="text-center text-[10px] text-gray-600 mt-6">© 2026 TriFit. Built for athletes.</p>
+  </div>
+
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="auth.js"></script>
+
+  <script>
+    // =============================================
+    // 状态管理
+    // =============================================
+    let isSignUp = false;
+    let isSubmitting = false;
+    let failedAttempts = 0;
+    let lockoutUntil = 0;
+
+    const form = document.getElementById('authForm');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const submitSpinner = document.getElementById('submitSpinner');
+    const errorBox = document.getElementById('errorBox');
+    const errorText = document.getElementById('errorText');
+    const successBox = document.getElementById('successBox');
+    const successText = document.getElementById('successText');
+    const lockoutBox = document.getElementById('lockoutBox');
+    const lockoutText = document.getElementById('lockoutText');
+    const passwordHint = document.getElementById('passwordHint');
+
+    // =============================================
+    // 如果已登录，直接跳转到 Dashboard
+    // =============================================
+    (async function checkExistingSession() {
+      const { session } = await getSession();
+      if (session) {
+        window.location.href = 'index.html';
+      }
+    })();
+
+    // =============================================
+    // 切换登录/注册模式
+    // =============================================
+    document.getElementById('toggleMode').addEventListener('click', () => {
+      isSignUp = !isSignUp;
+      document.getElementById('formTitle').textContent = isSignUp ? 'Create Account' : 'Welcome Back';
+      document.getElementById('formSubtitle').textContent = isSignUp ? 'Sign up to start training' : 'Sign in to your account';
+      submitText.textContent = isSignUp ? 'Create Account' : 'Sign In';
+      document.getElementById('toggleQuestion').textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
+      document.getElementById('toggleMode').textContent = isSignUp ? 'Sign In' : 'Sign Up';
+      passwordInput.setAttribute('autocomplete', isSignUp ? 'new-password' : 'current-password');
+      passwordHint.classList.toggle('hidden', !isSignUp);
+      hideMessages();
+    });
+
+    // =============================================
+    // 密码可见性切换
+    // =============================================
+    document.getElementById('togglePassword').addEventListener('click', () => {
+      const type = passwordInput.type === 'password' ? 'text' : 'password';
+      passwordInput.type = type;
+      document.querySelector('#togglePassword i').className = `fas fa-eye${type === 'text' ? '-slash' : ''} text-sm`;
+    });
+
+    // =============================================
+    // 密码强度实时检查（注册模式）
+    // =============================================
+    passwordInput.addEventListener('input', () => {
+      if (!isSignUp) return;
+      const val = passwordInput.value;
+      const hasLength = val.length >= 8;
+      const hasMix = /[a-zA-Z]/.test(val) && /[0-9]/.test(val);
+
+      const hintLength = document.getElementById('hintLength');
+      const hintMix = document.getElementById('hintMix');
+
+      hintLength.className = hasLength ? 'text-green-400' : 'text-red-400';
+      hintLength.innerHTML = `<i class="fas fa-${hasLength ? 'check' : 'xmark'} mr-0.5"></i>8+ characters`;
+      hintMix.className = hasMix ? 'text-green-400' : 'text-red-400';
+      hintMix.innerHTML = `<i class="fas fa-${hasMix ? 'check' : 'xmark'} mr-0.5"></i>Letters & numbers`;
+    });
+
+    // =============================================
+    // 表单提交
+    // =============================================
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMessages();
+
+      // 检查锁定状态（防暴力破解）
+      if (Date.now() < lockoutUntil) {
+        const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        showLockout(`Too many failed attempts. Please wait ${remaining} seconds.`);
+        return;
+      }
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      // 前端密码验证（注册模式）
+      if (isSignUp) {
+        if (password.length < 8) {
+          showError('Password must be at least 8 characters.');
+          return;
+        }
+        if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+          showError('Password must contain both letters and numbers.');
+          return;
+        }
+      }
+
+      setSubmitting(true);
+
+      try {
+        if (isSignUp) {
+          // 注册
+          const { data, error } = await signUp(email, password);
+          if (error) {
+            showError(error.message);
+            return;
+          }
+          // 检查是否需要邮箱确认
+          if (data.user && !data.session) {
+            showSuccess('Check your email! Click the confirmation link to activate your account, then sign in.');
+            // 切换回登录模式
+            isSignUp = false;
+            document.getElementById('formTitle').textContent = 'Welcome Back';
+            document.getElementById('formSubtitle').textContent = 'Sign in to your account';
+            submitText.textContent = 'Sign In';
+            document.getElementById('toggleQuestion').textContent = "Don't have an account?";
+            document.getElementById('toggleMode').textContent = 'Sign Up';
+            passwordHint.classList.add('hidden');
+          } else if (data.session) {
+            // 如果不需要确认（dev 环境可能关闭了邮件确认）
+            window.location.href = 'index.html';
+          }
+        } else {
+          // 登录
+          const { data, error } = await signIn(email, password);
+          if (error) {
+            failedAttempts++;
+            if (failedAttempts >= 5) {
+              lockoutUntil = Date.now() + 60000; // 锁定 60 秒
+              failedAttempts = 0;
+              showLockout('Too many failed attempts. Please wait 60 seconds.');
+              startLockoutTimer();
+            } else {
+              showError(error.message);
+            }
+            return;
+          }
+          // 登录成功
+          failedAttempts = 0;
+          window.location.href = 'index.html';
+        }
+      } catch (err) {
+        showError('An unexpected error occurred. Please try again.');
+        console.error('[login] Unexpected error:', err);
+      } finally {
+        setSubmitting(false);
+      }
+    });
+
+    // =============================================
+    // UI 辅助函数
+    // =============================================
+    function setSubmitting(loading) {
+      isSubmitting = loading;
+      submitBtn.disabled = loading;
+      submitBtn.classList.toggle('opacity-60', loading);
+      submitSpinner.classList.toggle('hidden', !loading);
+    }
+
+    function showError(msg) {
+      errorText.textContent = msg;
+      errorBox.classList.remove('hidden');
+    }
+
+    function showSuccess(msg) {
+      successText.textContent = msg;
+      successBox.classList.remove('hidden');
+    }
+
+    function showLockout(msg) {
+      lockoutText.textContent = msg;
+      lockoutBox.classList.remove('hidden');
+    }
+
+    function hideMessages() {
+      errorBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+      lockoutBox.classList.add('hidden');
+    }
+
+    function startLockoutTimer() {
+      const interval = setInterval(() => {
+        const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        if (remaining <= 0) {
+          lockoutBox.classList.add('hidden');
+          clearInterval(interval);
+          return;
+        }
+        lockoutText.textContent = `Too many failed attempts. Please wait ${remaining} seconds.`;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
