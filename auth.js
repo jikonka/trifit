@@ -960,17 +960,22 @@ function deduplicateResultSet(rows) {
 
   const seen = new Set();
   const result = [];
+  let skipped = 0;
 
   for (const row of rows) {
     if (row.source_file) {
       const key = row.source_file + '||' + row.activity_type + '||' + row.date;
       if (seen.has(key)) {
-        // 跳过重复（保留了第一个遇到的 = created_at 最新的那条）
+        skipped++;
         continue;
       }
       seen.add(key);
     }
     result.push(row);
+  }
+
+  if (skipped > 0) {
+    console.log('[dedup-display] Filtered', skipped, 'duplicate(s) from', rows.length, 'rows → showing', result.length);
   }
 
   return result;
@@ -1111,6 +1116,7 @@ async function deduplicateActivities(userId) {
 
   try {
     // 1. 查询所有有 source_file 的顶层记录
+    console.log('[dedup] Step 1: Querying top-level activities with source_file for user', userId);
     const { data: allTop, error: queryError } = await _supabase
       .from('activities')
       .select('id, source_file, activity_type, date, duration_min, created_at')
@@ -1119,41 +1125,53 @@ async function deduplicateActivities(userId) {
       .is('parent_id', null)
       .order('created_at', { ascending: true });
 
-    if (queryError) throw queryError;
+    if (queryError) {
+      console.error('[dedup] Query failed:', queryError.message, queryError);
+      throw queryError;
+    }
+    console.log('[dedup] Step 1 result: found', allTop ? allTop.length : 0, 'records');
+    if (allTop && allTop.length > 0) {
+      console.log('[dedup] Sample records:', JSON.stringify(allTop.slice(0, 5)));
+    }
     if (!allTop || allTop.length === 0) return { cleaned: 0, errors };
 
     // 2. 按 (source_file, activity_type, date) 分组，找出重复组
     const groups = {};
     for (const row of allTop) {
-      // 使用 source_file + activity_type + date 作为复合去重键
       const key = `${row.source_file}||${row.activity_type}||${row.date}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(row);
     }
 
-    // 3. 对于每个有重复的组，保留第一条（最早创建的），删除其余
-    for (const key of Object.keys(groups)) {
-      const group = groups[key];
-      if (group.length <= 1) continue; // 没有重复
+    const dupGroups = Object.entries(groups).filter(([, g]) => g.length > 1);
+    console.log('[dedup] Step 2: Found', dupGroups.length, 'groups with duplicates');
+    for (const [key, group] of dupGroups) {
+      console.log('[dedup]   Group:', key, '→', group.length, 'records');
+    }
 
-      // 保留第一条（已按 created_at ASC 排序）
+    // 3. 对于每个有重复的组，保留第一条（最早创建的），删除其余
+    for (const [key, group] of dupGroups) {
       const keep = group[0];
       const toDelete = group.slice(1);
+      console.log('[dedup] Step 3: Keeping', keep.id, '- deleting', toDelete.length, 'duplicates for', key);
 
       for (const dup of toDelete) {
         try {
+          console.log('[dedup]   Deleting', dup.id, '...');
           await deleteActivity(dup.id);
           totalCleaned++;
+          console.log('[dedup]   Deleted', dup.id, '✓');
         } catch (delErr) {
+          console.error('[dedup]   Delete FAILED for', dup.id, ':', delErr.message, delErr);
           errors.push('Failed to delete ' + dup.id + ': ' + delErr.message);
         }
       }
     }
 
-    console.log('[auth] Deduplication complete:', totalCleaned, 'duplicates removed');
+    console.log('[dedup] Complete:', totalCleaned, 'duplicates removed, errors:', errors.length);
     return { cleaned: totalCleaned, errors };
   } catch (e) {
-    console.error('[auth] deduplicateActivities error:', e.message);
+    console.error('[dedup] Fatal error:', e.message, e);
     errors.push(e.message);
     return { cleaned: totalCleaned, errors };
   }

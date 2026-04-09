@@ -338,7 +338,7 @@
     </div>
   </footer>
 
-  <script src="auth.js"></script>
+  <script src="auth.js?v=20260409b"></script>
   <script type="module">
     // =============================================
     // 加载 Garmin FIT SDK（ESM via CDN）
@@ -1064,12 +1064,29 @@
       if (!currentUserId) return;
 
       const filterType = document.getElementById('filterType').value;
-      const activities = await loadActivities(currentUserId, {
+      let activities = await loadActivities(currentUserId, {
         type: filterType || undefined,
         topLevelOnly: true,
         includeLegs: true,
         limit: 30,
       });
+
+      // ★ 二次去重保护（防止 loadActivities 中的去重因任何原因未生效）
+      if (activities && activities.length > 0) {
+        const before = activities.length;
+        const seen = new Set();
+        activities = activities.filter(a => {
+          if (a.source_file) {
+            const key = a.source_file + '||' + a.activity_type + '||' + a.date;
+            if (seen.has(key)) return false;
+            seen.add(key);
+          }
+          return true;
+        });
+        if (activities.length < before) {
+          console.log('[Upload] Backup dedup filtered', before - activities.length, 'extra duplicates');
+        }
+      }
 
       const container = document.getElementById('activitiesList');
       const emptyState = document.getElementById('activitiesEmpty');
