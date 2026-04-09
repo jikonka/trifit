@@ -30,6 +30,16 @@
     .card-glow { box-shadow: 0 0 20px rgba(14, 165, 233, 0.1); }
     .card-glow:hover { box-shadow: 0 0 30px rgba(14, 165, 233, 0.2); }
     .nav-active { border-bottom: 2px solid #0ea5e9; color: #0ea5e9; }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body class="gradient-bg min-h-screen text-gray-200">
@@ -80,160 +90,204 @@
       <p class="text-gray-400 text-sm">Track your progress, identify trends, and predict race performance.</p>
     </div>
 
-    <!-- Key Stats Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-            <i class="fas fa-person-swimming text-blue-400 text-xs"></i>
-          </div>
-          <span class="text-xs text-gray-400">Swim Pace</span>
+    <!-- Empty State (shown when no activities) -->
+    <div id="emptyState" class="hidden">
+      <div class="bg-surface rounded-2xl border border-gray-700/50 p-12 text-center card-glow">
+        <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <i class="fas fa-chart-line text-primary text-3xl"></i>
         </div>
-        <p class="text-xl font-bold text-white">1:48<span class="text-sm text-gray-400 font-normal">/100m</span></p>
-        <p class="text-xs text-green-400 mt-1"><i class="fas fa-arrow-down mr-1"></i>3s improvement</p>
-      </div>
-      <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-            <i class="fas fa-bicycle text-orange-400 text-xs"></i>
-          </div>
-          <span class="text-xs text-gray-400">Bike Power</span>
-        </div>
-        <p class="text-xl font-bold text-white">185<span class="text-sm text-gray-400 font-normal"> W avg</span></p>
-        <p class="text-xs text-green-400 mt-1"><i class="fas fa-arrow-up mr-1"></i>+8W from last month</p>
-      </div>
-      <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-            <i class="fas fa-person-running text-green-400 text-xs"></i>
-          </div>
-          <span class="text-xs text-gray-400">Run Pace</span>
-        </div>
-        <p class="text-xl font-bold text-white">5:12<span class="text-sm text-gray-400 font-normal">/km</span></p>
-        <p class="text-xs text-green-400 mt-1"><i class="fas fa-arrow-down mr-1"></i>8s faster</p>
-      </div>
-      <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-            <i class="fas fa-heart-pulse text-red-400 text-xs"></i>
-          </div>
-          <span class="text-xs text-gray-400">Avg HR</span>
-        </div>
-        <p class="text-xl font-bold text-white">142<span class="text-sm text-gray-400 font-normal"> bpm</span></p>
-        <p class="text-xs text-yellow-400 mt-1"><i class="fas fa-minus mr-1"></i>Stable</p>
+        <h3 class="text-lg font-semibold text-white mb-2">No Activity Data Yet</h3>
+        <p class="text-sm text-gray-400 mb-6 max-w-md mx-auto">
+          Upload your Garmin .fit files or log activities manually to see your performance analysis here.
+        </p>
+        <a href="upload.html" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/80 text-white text-sm font-medium rounded-lg transition-colors">
+          <i class="fas fa-cloud-arrow-up"></i>Upload Activities
+        </a>
       </div>
     </div>
 
-    <!-- Charts Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <!-- Data Content (hidden until data loads) -->
+    <div id="dataContent" class="hidden">
 
-      <!-- Weekly Training Volume -->
-      <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-white">Weekly Training Volume</h3>
-          <select class="bg-dark/60 text-xs text-gray-400 px-3 py-1.5 rounded-lg border border-gray-600/50 focus:outline-none">
-            <option>Last 8 Weeks</option>
-            <option>Last 12 Weeks</option>
-            <option>All Time</option>
-          </select>
-        </div>
-        <div class="h-64">
-          <canvas id="volumeChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Pace Trend -->
-      <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-white">Pace Trend (Run)</h3>
-          <select class="bg-dark/60 text-xs text-gray-400 px-3 py-1.5 rounded-lg border border-gray-600/50 focus:outline-none">
-            <option>Last 3 Months</option>
-            <option>Last 6 Months</option>
-            <option>Year</option>
-          </select>
-        </div>
-        <div class="h-64">
-          <canvas id="paceTrendChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Heart Rate Zones -->
-      <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-white">Heart Rate Zone Distribution</h3>
-          <span class="text-xs text-gray-500">This Week</span>
-        </div>
-        <div class="h-64">
-          <canvas id="hrZonesChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Discipline Split -->
-      <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-white">Training Discipline Split</h3>
-          <span class="text-xs text-gray-500">This Month</span>
-        </div>
-        <div class="h-64">
-          <canvas id="disciplineChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- Race Prediction -->
-    <section class="mb-8">
-      <div class="flex items-center gap-2 mb-4">
-        <i class="fas fa-crystal-ball text-accent"></i>
-        <h3 class="text-lg font-semibold text-white">Race Prediction</h3>
-        <span class="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full ml-1">AI-Powered</span>
-      </div>
-      <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <!-- Swim Prediction -->
-          <div class="text-center">
-            <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <i class="fas fa-person-swimming text-blue-400 text-xl"></i>
+      <!-- Key Stats Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <i class="fas fa-person-swimming text-blue-400 text-xs"></i>
             </div>
-            <p class="text-xs text-gray-400 mb-1">Swim (1.5km)</p>
-            <p class="text-2xl font-bold text-white">27:05</p>
-            <p class="text-xs text-gray-500 mt-1">1:48 /100m pace</p>
+            <span class="text-xs text-gray-400">Swim Pace</span>
           </div>
-          <!-- Bike Prediction -->
-          <div class="text-center">
-            <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-orange-500/20 flex items-center justify-center">
-              <i class="fas fa-bicycle text-orange-400 text-xl"></i>
+          <p class="text-xl font-bold text-white" id="statSwimPace">--<span class="text-sm text-gray-400 font-normal">/100m</span></p>
+          <p class="text-xs text-gray-500 mt-1" id="statSwimTrend">--</p>
+        </div>
+        <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+              <i class="fas fa-bicycle text-orange-400 text-xs"></i>
             </div>
-            <p class="text-xs text-gray-400 mb-1">Bike (40km)</p>
-            <p class="text-2xl font-bold text-white">1:12:30</p>
-            <p class="text-xs text-gray-500 mt-1">33.1 km/h avg</p>
+            <span class="text-xs text-gray-400">Bike Speed</span>
           </div>
-          <!-- Run Prediction -->
-          <div class="text-center">
-            <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-green-500/20 flex items-center justify-center">
-              <i class="fas fa-person-running text-green-400 text-xl"></i>
+          <p class="text-xl font-bold text-white" id="statBikeSpeed">--<span class="text-sm text-gray-400 font-normal"> km/h</span></p>
+          <p class="text-xs text-gray-500 mt-1" id="statBikeTrend">--</p>
+        </div>
+        <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <i class="fas fa-person-running text-green-400 text-xs"></i>
             </div>
-            <p class="text-xs text-gray-400 mb-1">Run (10km)</p>
-            <p class="text-2xl font-bold text-white">52:00</p>
-            <p class="text-xs text-gray-500 mt-1">5:12 /km pace</p>
+            <span class="text-xs text-gray-400">Run Pace</span>
           </div>
-          <!-- Total Prediction -->
-          <div class="text-center bg-gradient-to-b from-primary/10 to-transparent rounded-xl p-4 -m-2">
-            <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center">
-              <i class="fas fa-trophy text-primary text-xl"></i>
+          <p class="text-xl font-bold text-white" id="statRunPace">--<span class="text-sm text-gray-400 font-normal">/km</span></p>
+          <p class="text-xs text-gray-500 mt-1" id="statRunTrend">--</p>
+        </div>
+        <div class="bg-surface rounded-xl p-4 border border-gray-700/50 card-glow">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+              <i class="fas fa-heart-pulse text-red-400 text-xs"></i>
             </div>
-            <p class="text-xs text-primary mb-1 font-semibold">Predicted Finish</p>
-            <p class="text-3xl font-bold text-white">2:31:35</p>
-            <p class="text-xs text-gray-500 mt-1">+transitions ~5min</p>
+            <span class="text-xs text-gray-400">Avg HR</span>
+          </div>
+          <p class="text-xl font-bold text-white" id="statAvgHr">--<span class="text-sm text-gray-400 font-normal"> bpm</span></p>
+          <p class="text-xs text-gray-500 mt-1" id="statHrTrend">--</p>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+        <!-- Weekly Training Volume -->
+        <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-white">Weekly Training Volume</h3>
+            <select id="volumeRange" class="bg-dark/60 text-xs text-gray-400 px-3 py-1.5 rounded-lg border border-gray-600/50 focus:outline-none">
+              <option value="8">Last 8 Weeks</option>
+              <option value="12">Last 12 Weeks</option>
+            </select>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="volumeChart"></canvas>
+            <div id="volumeEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+              <div class="text-center">
+                <i class="fas fa-chart-bar text-2xl mb-2 block opacity-40"></i>
+                <p>No weekly data yet</p>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="mt-6 pt-4 border-t border-gray-700/30">
-          <div class="flex items-center gap-2 text-xs text-gray-500">
-            <i class="fas fa-info-circle text-primary"></i>
-            <span>Prediction based on your last 30 days of training data. Upload more activities for better accuracy.</span>
+
+        <!-- Pace Trend -->
+        <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-white">Pace Trend (Run)</h3>
+            <select id="paceRange" class="bg-dark/60 text-xs text-gray-400 px-3 py-1.5 rounded-lg border border-gray-600/50 focus:outline-none">
+              <option value="3">Last 3 Months</option>
+              <option value="6">Last 6 Months</option>
+              <option value="12">Last Year</option>
+            </select>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="paceTrendChart"></canvas>
+            <div id="paceEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+              <div class="text-center">
+                <i class="fas fa-chart-line text-2xl mb-2 block opacity-40"></i>
+                <p>No run data yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Heart Rate Zones -->
+        <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-white">Heart Rate Zone Distribution</h3>
+            <span class="text-xs text-gray-500">All Activities</span>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="hrZonesChart"></canvas>
+            <div id="hrEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+              <div class="text-center">
+                <i class="fas fa-heart-pulse text-2xl mb-2 block opacity-40"></i>
+                <p>No heart rate data yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discipline Split -->
+        <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-white">Training Discipline Split</h3>
+            <span class="text-xs text-gray-500">All Time</span>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="disciplineChart"></canvas>
+            <div id="disciplineEmpty" class="hidden absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+              <div class="text-center">
+                <i class="fas fa-chart-pie text-2xl mb-2 block opacity-40"></i>
+                <p>No training data yet</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </section>
+
+      <!-- Race Prediction -->
+      <section class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-trophy text-accent"></i>
+          <h3 class="text-lg font-semibold text-white">Race Prediction</h3>
+          <span class="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full ml-1">Data-Driven</span>
+        </div>
+        <div class="bg-surface rounded-xl p-6 border border-gray-700/50 card-glow">
+          <div id="racePrediction" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <!-- Swim Prediction -->
+            <div class="text-center">
+              <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <i class="fas fa-person-swimming text-blue-400 text-xl"></i>
+              </div>
+              <p class="text-xs text-gray-400 mb-1">Swim (1.5km)</p>
+              <p class="text-2xl font-bold text-white" id="predSwim">--:--</p>
+              <p class="text-xs text-gray-500 mt-1" id="predSwimPace">--</p>
+            </div>
+            <!-- Bike Prediction -->
+            <div class="text-center">
+              <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-orange-500/20 flex items-center justify-center">
+                <i class="fas fa-bicycle text-orange-400 text-xl"></i>
+              </div>
+              <p class="text-xs text-gray-400 mb-1">Bike (40km)</p>
+              <p class="text-2xl font-bold text-white" id="predBike">--:--</p>
+              <p class="text-xs text-gray-500 mt-1" id="predBikeSpeed">--</p>
+            </div>
+            <!-- Run Prediction -->
+            <div class="text-center">
+              <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-green-500/20 flex items-center justify-center">
+                <i class="fas fa-person-running text-green-400 text-xl"></i>
+              </div>
+              <p class="text-xs text-gray-400 mb-1">Run (10km)</p>
+              <p class="text-2xl font-bold text-white" id="predRun">--:--</p>
+              <p class="text-xs text-gray-500 mt-1" id="predRunPace">--</p>
+            </div>
+            <!-- Total Prediction -->
+            <div class="text-center bg-gradient-to-b from-primary/10 to-transparent rounded-xl p-4 -m-2">
+              <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center">
+                <i class="fas fa-trophy text-primary text-xl"></i>
+              </div>
+              <p class="text-xs text-primary mb-1 font-semibold">Predicted Finish</p>
+              <p class="text-3xl font-bold text-white" id="predTotal">--:--:--</p>
+              <p class="text-xs text-gray-500 mt-1" id="predTotalNote">Upload data for prediction</p>
+            </div>
+          </div>
+          <div class="mt-6 pt-4 border-t border-gray-700/30">
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <i class="fas fa-info-circle text-primary"></i>
+              <span id="predInfo">Prediction based on your training data. Upload more activities for better accuracy.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /dataContent -->
 
   </main>
 
@@ -247,9 +301,17 @@
 
   <script src="auth.js"></script>
   <script>
+    // =============================================
     // 认证守卫
+    // =============================================
+    let currentUserId = null;
+
     (async function() {
-      await requireAuth();
+      const user = await requireAuth();
+      if (user) {
+        currentUserId = user.id;
+        await loadAnalysis();
+      }
     })();
 
     // Mobile menu
@@ -257,104 +319,742 @@
       document.getElementById('mobileMenu').classList.toggle('hidden');
     });
 
+    // =============================================
+    // Chart.js 全局默认
+    // =============================================
     const chartFont = { family: "'Inter', system-ui, sans-serif" };
     Chart.defaults.font.family = chartFont.family;
     Chart.defaults.color = '#94a3b8';
 
-    // Weekly Training Volume (Stacked Bar)
-    new Chart(document.getElementById('volumeChart'), {
-      type: 'bar',
-      data: {
-        labels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8'],
-        datasets: [
-          { label: 'Swim', data: [3.2, 4.0, 3.5, 4.5, 3.0, 4.2, 5.0, 4.0], backgroundColor: '#3b82f6', borderRadius: 4 },
-          { label: 'Bike', data: [4.5, 5.0, 6.0, 5.5, 4.0, 6.5, 7.0, 5.5], backgroundColor: '#f97316', borderRadius: 4 },
-          { label: 'Run', data: [3.0, 3.5, 4.0, 3.5, 2.5, 4.0, 3.5, 4.0], backgroundColor: '#22c55e', borderRadius: 4 },
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { stacked: true, grid: { color: '#334155' }, border: { color: '#475569' } },
-          y: { stacked: true, grid: { color: '#334155' }, border: { color: '#475569' }, title: { display: true, text: 'Hours', color: '#94a3b8' } }
-        },
-        plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 16 } } }
-      }
-    });
+    // Chart instances (for destroy/rebuild on filter change)
+    let volumeChartInstance = null;
+    let paceTrendChartInstance = null;
+    let hrZonesChartInstance = null;
+    let disciplineChartInstance = null;
 
-    // Pace Trend Line Chart
-    new Chart(document.getElementById('paceTrendChart'), {
-      type: 'line',
-      data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        datasets: [{
-          label: 'Run Pace (min/km)',
-          data: [5.55, 5.48, 5.42, 5.38, 5.30, 5.28, 5.25, 5.20, 5.18, 5.15, 5.12, null],
-          borderColor: '#22c55e',
-          backgroundColor: 'rgba(34, 197, 94, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: '#22c55e',
-          pointRadius: 4,
-          pointHoverRadius: 6,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { grid: { color: '#334155' }, border: { color: '#475569' } },
-          y: { reverse: true, grid: { color: '#334155' }, border: { color: '#475569' }, title: { display: true, text: 'min/km', color: '#94a3b8' } }
-        },
-        plugins: { legend: { display: false } }
-      }
-    });
+    // =============================================
+    // 主加载函数
+    // =============================================
+    async function loadAnalysis() {
+      if (!currentUserId) return;
 
-    // HR Zones (Horizontal Bar)
-    new Chart(document.getElementById('hrZonesChart'), {
-      type: 'bar',
-      data: {
-        labels: ['Zone 1 (Recovery)', 'Zone 2 (Endurance)', 'Zone 3 (Tempo)', 'Zone 4 (Threshold)', 'Zone 5 (Max)'],
-        datasets: [{
-          data: [15, 45, 25, 12, 3],
-          backgroundColor: ['#94a3b8', '#22c55e', '#eab308', '#f97316', '#ef4444'],
-          borderRadius: 4,
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { grid: { color: '#334155' }, border: { color: '#475569' }, title: { display: true, text: '% of time', color: '#94a3b8' } },
-          y: { grid: { display: false }, border: { color: '#475569' } }
-        },
-        plugins: { legend: { display: false } }
-      }
-    });
+      // 加载所有活动数据（含 brick 子段，用于按类型分析）
+      const allActivities = await loadActivities(currentUserId, {
+        topLevelOnly: false,
+        includeLegs: false,
+        limit: 500,
+      });
 
-    // Discipline Split (Doughnut)
-    new Chart(document.getElementById('disciplineChart'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Swim', 'Bike', 'Run', 'Strength', 'Other'],
-        datasets: [{
-          data: [22, 38, 25, 10, 5],
-          backgroundColor: ['#3b82f6', '#f97316', '#22c55e', '#eab308', '#8b5cf6'],
-          borderWidth: 0,
-          hoverOffset: 8,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '65%',
-        plugins: {
-          legend: { position: 'right', labels: { boxWidth: 12, padding: 12 } }
+      // 也加载顶层活动（用于周训练量统计）
+      const topActivities = await loadActivities(currentUserId, {
+        topLevelOnly: true,
+        includeLegs: false,
+        limit: 500,
+      });
+
+      if (allActivities.length === 0) {
+        document.getElementById('emptyState').classList.remove('hidden');
+        document.getElementById('dataContent').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('dataContent').classList.remove('hidden');
+
+      // 按类型分组（排除 brick 父记录，只看具体运动段）
+      const swimData = allActivities.filter(a => a.activity_type === 'swim');
+      const bikeData = allActivities.filter(a => a.activity_type === 'bike');
+      const runData = allActivities.filter(a => a.activity_type === 'run');
+      const strengthData = allActivities.filter(a => a.activity_type === 'strength');
+      const otherData = allActivities.filter(a =>
+        !['swim', 'bike', 'run', 'brick', 't1', 't2', 'strength'].includes(a.activity_type)
+      );
+
+      // 1. Key Stats
+      renderKeyStats(swimData, bikeData, runData, allActivities);
+
+      // 2. Charts
+      renderVolumeChart(topActivities, allActivities);
+      renderPaceTrendChart(runData);
+      renderHrZonesChart(allActivities);
+      renderDisciplineChart(swimData, bikeData, runData, strengthData, otherData);
+
+      // 3. Race Prediction
+      renderRacePrediction(swimData, bikeData, runData);
+
+      // Listen for filter changes
+      document.getElementById('volumeRange').addEventListener('change', () => {
+        renderVolumeChart(topActivities, allActivities);
+      });
+      document.getElementById('paceRange').addEventListener('change', () => {
+        renderPaceTrendChart(runData);
+      });
+    }
+
+    // =============================================
+    // 1. Key Stats Cards
+    // =============================================
+    function renderKeyStats(swimData, bikeData, runData, allActivities) {
+      // Swim Pace (min:sec per 100m)
+      const swimPaceEl = document.getElementById('statSwimPace');
+      const swimTrendEl = document.getElementById('statSwimTrend');
+      const swimsWithData = swimData.filter(a => a.distance_m && a.duration_min && a.distance_m > 0);
+
+      if (swimsWithData.length > 0) {
+        // 取最近5次的平均
+        const recent = swimsWithData.slice(0, Math.min(5, swimsWithData.length));
+        const avgPace100m = calcAvgPace100m(recent);
+        swimPaceEl.textContent = '';
+        const mainText = document.createTextNode(formatPace(avgPace100m));
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = '/100m';
+        swimPaceEl.appendChild(mainText);
+        swimPaceEl.appendChild(unit);
+
+        // Trend: compare recent 5 vs previous 5
+        renderTrend(swimTrendEl, swimsWithData, calcAvgPace100m, true);
+      } else {
+        swimPaceEl.textContent = '--';
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = '/100m';
+        swimPaceEl.appendChild(unit);
+        swimTrendEl.textContent = 'No swim data';
+      }
+
+      // Bike Speed (km/h)
+      const bikeSpeedEl = document.getElementById('statBikeSpeed');
+      const bikeTrendEl = document.getElementById('statBikeTrend');
+      const bikesWithData = bikeData.filter(a => a.distance_m && a.duration_min && a.distance_m > 0 && a.duration_min > 0);
+
+      if (bikesWithData.length > 0) {
+        const recent = bikesWithData.slice(0, Math.min(5, bikesWithData.length));
+        const avgSpeed = calcAvgSpeedKmh(recent);
+        bikeSpeedEl.textContent = '';
+        const mainText = document.createTextNode(avgSpeed.toFixed(1));
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = ' km/h';
+        bikeSpeedEl.appendChild(mainText);
+        bikeSpeedEl.appendChild(unit);
+
+        renderTrend(bikeTrendEl, bikesWithData, calcAvgSpeedKmh, false);
+      } else {
+        bikeSpeedEl.textContent = '--';
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = ' km/h';
+        bikeSpeedEl.appendChild(unit);
+        bikeTrendEl.textContent = 'No bike data';
+      }
+
+      // Run Pace (min:sec per km)
+      const runPaceEl = document.getElementById('statRunPace');
+      const runTrendEl = document.getElementById('statRunTrend');
+      const runsWithData = runData.filter(a => a.distance_m && a.duration_min && a.distance_m > 0);
+
+      if (runsWithData.length > 0) {
+        const recent = runsWithData.slice(0, Math.min(5, runsWithData.length));
+        const avgPaceKm = calcAvgPacePerKm(recent);
+        runPaceEl.textContent = '';
+        const mainText = document.createTextNode(formatPace(avgPaceKm));
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = '/km';
+        runPaceEl.appendChild(mainText);
+        runPaceEl.appendChild(unit);
+
+        renderTrend(runTrendEl, runsWithData, calcAvgPacePerKm, true);
+      } else {
+        runPaceEl.textContent = '--';
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = '/km';
+        runPaceEl.appendChild(unit);
+        runTrendEl.textContent = 'No run data';
+      }
+
+      // Avg HR
+      const avgHrEl = document.getElementById('statAvgHr');
+      const hrTrendEl = document.getElementById('statHrTrend');
+      const activitiesWithHr = allActivities.filter(a => a.avg_hr && a.avg_hr > 0);
+
+      if (activitiesWithHr.length > 0) {
+        const recent = activitiesWithHr.slice(0, Math.min(10, activitiesWithHr.length));
+        const avgHr = Math.round(recent.reduce((sum, a) => sum + a.avg_hr, 0) / recent.length);
+        avgHrEl.textContent = '';
+        const mainText = document.createTextNode(avgHr);
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = ' bpm';
+        avgHrEl.appendChild(mainText);
+        avgHrEl.appendChild(unit);
+
+        if (activitiesWithHr.length >= 10) {
+          const olderSet = activitiesWithHr.slice(5, 10);
+          const newerSet = activitiesWithHr.slice(0, 5);
+          const oldAvg = Math.round(olderSet.reduce((s, a) => s + a.avg_hr, 0) / olderSet.length);
+          const newAvg = Math.round(newerSet.reduce((s, a) => s + a.avg_hr, 0) / newerSet.length);
+          const diff = newAvg - oldAvg;
+          if (Math.abs(diff) <= 2) {
+            hrTrendEl.textContent = '';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-minus mr-1';
+            hrTrendEl.appendChild(icon);
+            hrTrendEl.appendChild(document.createTextNode('Stable'));
+            hrTrendEl.className = 'text-xs text-yellow-400 mt-1';
+          } else if (diff < 0) {
+            hrTrendEl.textContent = '';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-arrow-down mr-1';
+            hrTrendEl.appendChild(icon);
+            hrTrendEl.appendChild(document.createTextNode(Math.abs(diff) + ' bpm lower'));
+            hrTrendEl.className = 'text-xs text-green-400 mt-1';
+          } else {
+            hrTrendEl.textContent = '';
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-arrow-up mr-1';
+            hrTrendEl.appendChild(icon);
+            hrTrendEl.appendChild(document.createTextNode(diff + ' bpm higher'));
+            hrTrendEl.className = 'text-xs text-red-400 mt-1';
+          }
+        } else {
+          hrTrendEl.textContent = activitiesWithHr.length + ' activities';
+        }
+      } else {
+        avgHrEl.textContent = '--';
+        const unit = document.createElement('span');
+        unit.className = 'text-sm text-gray-400 font-normal';
+        unit.textContent = ' bpm';
+        avgHrEl.appendChild(unit);
+        hrTrendEl.textContent = 'No HR data';
+      }
+    }
+
+    // =============================================
+    // 2. Weekly Training Volume (Stacked Bar)
+    // =============================================
+    function renderVolumeChart(topActivities, allActivities) {
+      const weeks = parseInt(document.getElementById('volumeRange').value) || 8;
+      const emptyEl = document.getElementById('volumeEmpty');
+      const canvas = document.getElementById('volumeChart');
+
+      // Build week buckets
+      const now = new Date();
+      const weekLabels = [];
+      const swimHours = [];
+      const bikeHours = [];
+      const runHours = [];
+      const otherHours = [];
+
+      for (let w = weeks - 1; w >= 0; w--) {
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() - w * 7); // Start of week (Sunday)
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+
+        const weekStartStr = weekStart.toISOString().split('T')[0];
+        const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+        // Label: "Mar 3"
+        weekLabels.push(weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+
+        // Use allActivities excluding brick parent (to avoid double-count)
+        // but including t1/t2 as other
+        const weekActivities = allActivities.filter(a =>
+          a.date >= weekStartStr && a.date < weekEndStr && a.activity_type !== 'brick'
+        );
+
+        let sHours = 0, bHours = 0, rHours = 0, oHours = 0;
+        for (const a of weekActivities) {
+          const hours = (a.duration_min || 0) / 60;
+          if (a.activity_type === 'swim') sHours += hours;
+          else if (a.activity_type === 'bike') bHours += hours;
+          else if (a.activity_type === 'run') rHours += hours;
+          else oHours += hours;
+        }
+
+        swimHours.push(Math.round(sHours * 10) / 10);
+        bikeHours.push(Math.round(bHours * 10) / 10);
+        runHours.push(Math.round(rHours * 10) / 10);
+        otherHours.push(Math.round(oHours * 10) / 10);
+      }
+
+      const hasData = swimHours.some(v => v > 0) || bikeHours.some(v => v > 0) ||
+                       runHours.some(v => v > 0) || otherHours.some(v => v > 0);
+
+      if (!hasData) {
+        emptyEl.classList.remove('hidden');
+        canvas.style.display = 'none';
+        if (volumeChartInstance) { volumeChartInstance.destroy(); volumeChartInstance = null; }
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      canvas.style.display = '';
+
+      if (volumeChartInstance) volumeChartInstance.destroy();
+
+      volumeChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: weekLabels,
+          datasets: [
+            { label: 'Swim', data: swimHours, backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'Bike', data: bikeHours, backgroundColor: '#f97316', borderRadius: 4 },
+            { label: 'Run', data: runHours, backgroundColor: '#22c55e', borderRadius: 4 },
+            { label: 'Other', data: otherHours, backgroundColor: '#8b5cf6', borderRadius: 4 },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true, grid: { color: '#334155' }, border: { color: '#475569' } },
+            y: { stacked: true, grid: { color: '#334155' }, border: { color: '#475569' }, title: { display: true, text: 'Hours', color: '#94a3b8' } }
+          },
+          plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 16 } } }
+        }
+      });
+    }
+
+    // =============================================
+    // 3. Pace Trend (Run)
+    // =============================================
+    function renderPaceTrendChart(runData) {
+      const months = parseInt(document.getElementById('paceRange').value) || 3;
+      const emptyEl = document.getElementById('paceEmpty');
+      const canvas = document.getElementById('paceTrendChart');
+
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - months);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+
+      const runsInRange = runData
+        .filter(a => a.date >= cutoffStr && a.distance_m && a.duration_min && a.distance_m > 0)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      if (runsInRange.length === 0) {
+        emptyEl.classList.remove('hidden');
+        canvas.style.display = 'none';
+        if (paceTrendChartInstance) { paceTrendChartInstance.destroy(); paceTrendChartInstance = null; }
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      canvas.style.display = '';
+
+      const labels = runsInRange.map(a => {
+        const d = new Date(a.date + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+      const paces = runsInRange.map(a => {
+        // pace in min/km
+        return a.duration_min / (a.distance_m / 1000);
+      });
+
+      if (paceTrendChartInstance) paceTrendChartInstance.destroy();
+
+      paceTrendChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Run Pace (min/km)',
+            data: paces,
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#22c55e',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#334155' }, border: { color: '#475569' } },
+            y: {
+              reverse: true,
+              grid: { color: '#334155' },
+              border: { color: '#475569' },
+              title: { display: true, text: 'min/km', color: '#94a3b8' },
+              ticks: {
+                callback: function(value) { return formatPace(value); }
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) { return 'Pace: ' + formatPace(ctx.parsed.y) + '/km'; }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // =============================================
+    // 4. Heart Rate Zones
+    // =============================================
+    function renderHrZonesChart(allActivities) {
+      const emptyEl = document.getElementById('hrEmpty');
+      const canvas = document.getElementById('hrZonesChart');
+
+      // We need activities with HR data and duration
+      const hrActivities = allActivities.filter(a =>
+        a.avg_hr && a.avg_hr > 0 && a.duration_min && a.duration_min > 0 &&
+        a.activity_type !== 'brick'
+      );
+
+      if (hrActivities.length === 0) {
+        emptyEl.classList.remove('hidden');
+        canvas.style.display = 'none';
+        if (hrZonesChartInstance) { hrZonesChartInstance.destroy(); hrZonesChartInstance = null; }
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      canvas.style.display = '';
+
+      // Determine max HR: from profile or estimate (220 - age or default 190)
+      let maxHr = 190; // default
+      // Try to get from profile cache
+      try {
+        const profile = JSON.parse(localStorage.getItem('trifit_profile') || 'null');
+        if (profile && profile.maxHR) maxHr = parseInt(profile.maxHR);
+      } catch (e) { /* ignore */ }
+
+      // Zone boundaries (% of max HR)
+      const zones = [
+        { label: 'Zone 1 (Recovery)', min: 0, max: 0.6 },
+        { label: 'Zone 2 (Endurance)', min: 0.6, max: 0.7 },
+        { label: 'Zone 3 (Tempo)', min: 0.7, max: 0.8 },
+        { label: 'Zone 4 (Threshold)', min: 0.8, max: 0.9 },
+        { label: 'Zone 5 (Max)', min: 0.9, max: 1.0 },
+      ];
+
+      const zoneMins = [0, 0, 0, 0, 0];
+      let totalMins = 0;
+
+      for (const a of hrActivities) {
+        const hrRatio = a.avg_hr / maxHr;
+        const dur = a.duration_min;
+        totalMins += dur;
+
+        for (let z = 0; z < zones.length; z++) {
+          if (hrRatio >= zones[z].min && (hrRatio < zones[z].max || z === zones.length - 1)) {
+            zoneMins[z] += dur;
+            break;
+          }
         }
       }
-    });
+
+      const zonePcts = zoneMins.map(m => totalMins > 0 ? Math.round((m / totalMins) * 100) : 0);
+
+      if (hrZonesChartInstance) hrZonesChartInstance.destroy();
+
+      hrZonesChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: zones.map(z => z.label),
+          datasets: [{
+            data: zonePcts,
+            backgroundColor: ['#94a3b8', '#22c55e', '#eab308', '#f97316', '#ef4444'],
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#334155' }, border: { color: '#475569' }, title: { display: true, text: '% of time', color: '#94a3b8' } },
+            y: { grid: { display: false }, border: { color: '#475569' } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    // =============================================
+    // 5. Discipline Split (Doughnut)
+    // =============================================
+    function renderDisciplineChart(swimData, bikeData, runData, strengthData, otherData) {
+      const emptyEl = document.getElementById('disciplineEmpty');
+      const canvas = document.getElementById('disciplineChart');
+
+      const swimMins = swimData.reduce((s, a) => s + (a.duration_min || 0), 0);
+      const bikeMins = bikeData.reduce((s, a) => s + (a.duration_min || 0), 0);
+      const runMins = runData.reduce((s, a) => s + (a.duration_min || 0), 0);
+      const strengthMins = strengthData.reduce((s, a) => s + (a.duration_min || 0), 0);
+      const otherMins = otherData.reduce((s, a) => s + (a.duration_min || 0), 0);
+      const totalMins = swimMins + bikeMins + runMins + strengthMins + otherMins;
+
+      if (totalMins === 0) {
+        emptyEl.classList.remove('hidden');
+        canvas.style.display = 'none';
+        if (disciplineChartInstance) { disciplineChartInstance.destroy(); disciplineChartInstance = null; }
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      canvas.style.display = '';
+
+      // Filter out zero categories
+      const categories = [];
+      const values = [];
+      const colors = [];
+      if (swimMins > 0) { categories.push('Swim'); values.push(Math.round(swimMins)); colors.push('#3b82f6'); }
+      if (bikeMins > 0) { categories.push('Bike'); values.push(Math.round(bikeMins)); colors.push('#f97316'); }
+      if (runMins > 0) { categories.push('Run'); values.push(Math.round(runMins)); colors.push('#22c55e'); }
+      if (strengthMins > 0) { categories.push('Strength'); values.push(Math.round(strengthMins)); colors.push('#eab308'); }
+      if (otherMins > 0) { categories.push('Other'); values.push(Math.round(otherMins)); colors.push('#8b5cf6'); }
+
+      if (disciplineChartInstance) disciplineChartInstance.destroy();
+
+      disciplineChartInstance = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: categories,
+          datasets: [{
+            data: values,
+            backgroundColor: colors,
+            borderWidth: 0,
+            hoverOffset: 8,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, padding: 12 } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const mins = ctx.raw;
+                  const hours = (mins / 60).toFixed(1);
+                  const pct = Math.round((mins / totalMins) * 100);
+                  return ctx.label + ': ' + hours + 'h (' + pct + '%)';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // =============================================
+    // 6. Race Prediction (Olympic Distance)
+    // =============================================
+    function renderRacePrediction(swimData, bikeData, runData) {
+      // Use recent activities to calculate average pace/speed
+      const recentSwims = swimData.filter(a => a.distance_m && a.duration_min && a.distance_m > 0).slice(0, 5);
+      const recentBikes = bikeData.filter(a => a.distance_m && a.duration_min && a.distance_m > 0).slice(0, 5);
+      const recentRuns = runData.filter(a => a.distance_m && a.duration_min && a.distance_m > 0).slice(0, 5);
+
+      const predSwimEl = document.getElementById('predSwim');
+      const predSwimPaceEl = document.getElementById('predSwimPace');
+      const predBikeEl = document.getElementById('predBike');
+      const predBikeSpeedEl = document.getElementById('predBikeSpeed');
+      const predRunEl = document.getElementById('predRun');
+      const predRunPaceEl = document.getElementById('predRunPace');
+      const predTotalEl = document.getElementById('predTotal');
+      const predTotalNoteEl = document.getElementById('predTotalNote');
+      const predInfoEl = document.getElementById('predInfo');
+
+      let swimTimeSec = null;
+      let bikeTimeSec = null;
+      let runTimeSec = null;
+      let dataCount = 0;
+
+      // Swim: 1500m
+      if (recentSwims.length > 0) {
+        const pace100m = calcAvgPace100m(recentSwims); // min per 100m
+        swimTimeSec = pace100m * 15 * 60; // 15 × 100m, in seconds
+        predSwimEl.textContent = formatTimeSec(swimTimeSec);
+        predSwimPaceEl.textContent = formatPace(pace100m) + ' /100m pace';
+        dataCount++;
+      } else {
+        predSwimEl.textContent = '--:--';
+        predSwimPaceEl.textContent = 'No swim data';
+      }
+
+      // Bike: 40km
+      if (recentBikes.length > 0) {
+        const speedKmh = calcAvgSpeedKmh(recentBikes);
+        bikeTimeSec = (40 / speedKmh) * 3600;
+        predBikeEl.textContent = formatTimeSec(bikeTimeSec);
+        predBikeSpeedEl.textContent = speedKmh.toFixed(1) + ' km/h avg';
+        dataCount++;
+      } else {
+        predBikeEl.textContent = '--:--';
+        predBikeSpeedEl.textContent = 'No bike data';
+      }
+
+      // Run: 10km
+      if (recentRuns.length > 0) {
+        const pacePerKm = calcAvgPacePerKm(recentRuns); // min per km
+        runTimeSec = pacePerKm * 10 * 60; // 10km
+        predRunEl.textContent = formatTimeSec(runTimeSec);
+        predRunPaceEl.textContent = formatPace(pacePerKm) + ' /km pace';
+        dataCount++;
+      } else {
+        predRunEl.textContent = '--:--';
+        predRunPaceEl.textContent = 'No run data';
+      }
+
+      // Total
+      if (dataCount === 3) {
+        const transitionSec = 5 * 60; // ~5 min for T1+T2
+        const totalSec = swimTimeSec + bikeTimeSec + runTimeSec + transitionSec;
+        predTotalEl.textContent = formatTimeSec(totalSec);
+        predTotalNoteEl.textContent = '+transitions ~5min';
+        predInfoEl.textContent = 'Prediction based on your last ' +
+          recentSwims.length + ' swims, ' + recentBikes.length + ' bikes, ' + recentRuns.length + ' runs. Upload more activities for better accuracy.';
+      } else if (dataCount > 0) {
+        predTotalEl.textContent = '--:--:--';
+        const missing = [];
+        if (recentSwims.length === 0) missing.push('swim');
+        if (recentBikes.length === 0) missing.push('bike');
+        if (recentRuns.length === 0) missing.push('run');
+        predTotalNoteEl.textContent = 'Need ' + missing.join(' + ') + ' data';
+        predInfoEl.textContent = 'Upload ' + missing.join(' and ') + ' activities to see a complete race prediction.';
+      } else {
+        predTotalEl.textContent = '--:--:--';
+        predTotalNoteEl.textContent = 'Upload data for prediction';
+        predInfoEl.textContent = 'Prediction based on your training data. Upload more activities for better accuracy.';
+      }
+    }
+
+    // =============================================
+    // Utility Functions
+    // =============================================
+
+    /**
+     * 计算平均配速 (min per 100m) — 游泳
+     */
+    function calcAvgPace100m(activities) {
+      let totalMin = 0, totalDist = 0;
+      for (const a of activities) {
+        totalMin += a.duration_min;
+        totalDist += a.distance_m;
+      }
+      if (totalDist === 0) return 0;
+      return totalMin / (totalDist / 100); // min per 100m
+    }
+
+    /**
+     * 计算平均速度 (km/h) — 骑车
+     */
+    function calcAvgSpeedKmh(activities) {
+      let totalMin = 0, totalDist = 0;
+      for (const a of activities) {
+        totalMin += a.duration_min;
+        totalDist += a.distance_m;
+      }
+      if (totalMin === 0) return 0;
+      return (totalDist / 1000) / (totalMin / 60); // km/h
+    }
+
+    /**
+     * 计算平均配速 (min per km) — 跑步
+     */
+    function calcAvgPacePerKm(activities) {
+      let totalMin = 0, totalDist = 0;
+      for (const a of activities) {
+        totalMin += a.duration_min;
+        totalDist += a.distance_m;
+      }
+      if (totalDist === 0) return 0;
+      return totalMin / (totalDist / 1000); // min per km
+    }
+
+    /**
+     * 格式化配速 (分钟小数 → m:ss)
+     */
+    function formatPace(decimalMin) {
+      if (!decimalMin || decimalMin <= 0) return '--:--';
+      const m = Math.floor(decimalMin);
+      const s = Math.round((decimalMin - m) * 60);
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    /**
+     * 格式化秒数为 h:mm:ss 或 m:ss
+     */
+    function formatTimeSec(totalSec) {
+      if (!totalSec || totalSec <= 0) return '--:--';
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = Math.round(totalSec % 60);
+
+      if (h > 0) {
+        return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      }
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    /**
+     * 渲染趋势指标
+     * @param {HTMLElement} el - 趋势文本元素
+     * @param {Array} data - 活动数组（已按日期降序）
+     * @param {Function} calcFn - 计算函数
+     * @param {boolean} lowerIsBetter - true: 越低越好（配速）, false: 越高越好（速度）
+     */
+    function renderTrend(el, data, calcFn, lowerIsBetter) {
+      // 清空
+      while (el.firstChild) el.removeChild(el.firstChild);
+
+      if (data.length < 6) {
+        el.textContent = data.length + ' activities';
+        el.className = 'text-xs text-gray-500 mt-1';
+        return;
+      }
+
+      const recentSet = data.slice(0, Math.min(5, Math.floor(data.length / 2)));
+      const olderSet = data.slice(recentSet.length, recentSet.length + Math.min(5, data.length - recentSet.length));
+
+      if (olderSet.length === 0) {
+        el.textContent = data.length + ' activities';
+        el.className = 'text-xs text-gray-500 mt-1';
+        return;
+      }
+
+      const recentVal = calcFn(recentSet);
+      const olderVal = calcFn(olderSet);
+      const diff = recentVal - olderVal;
+      const absDiff = Math.abs(diff);
+
+      const isImproved = lowerIsBetter ? diff < -0.01 : diff > 0.01;
+      const isWorsened = lowerIsBetter ? diff > 0.01 : diff < -0.01;
+
+      const icon = document.createElement('i');
+
+      if (isImproved) {
+        icon.className = lowerIsBetter ? 'fas fa-arrow-down mr-1' : 'fas fa-arrow-up mr-1';
+        el.appendChild(icon);
+        el.appendChild(document.createTextNode('Improving'));
+        el.className = 'text-xs text-green-400 mt-1';
+      } else if (isWorsened) {
+        icon.className = lowerIsBetter ? 'fas fa-arrow-up mr-1' : 'fas fa-arrow-down mr-1';
+        el.appendChild(icon);
+        el.appendChild(document.createTextNode('Declining'));
+        el.className = 'text-xs text-red-400 mt-1';
+      } else {
+        icon.className = 'fas fa-minus mr-1';
+        el.appendChild(icon);
+        el.appendChild(document.createTextNode('Stable'));
+        el.className = 'text-xs text-yellow-400 mt-1';
+      }
+    }
   </script>
 </body>
 </html>
