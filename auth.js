@@ -644,10 +644,18 @@ function sanitizeText(text) {
  * @param {object} FitSDK - Garmin FIT SDK 模块 { Decoder, Stream }
  * @returns {Promise<{success: boolean, summary: object, error?: string}>}
  */
-async function importFitFile(arrayBuffer, fileName, userId, FitSDK) {
+async function importFitFile(arrayBuffer, fileName, userId, FitSDK, options = {}) {
   const { Decoder, Stream } = FitSDK;
+  const { allowOverwrite = false } = options;
 
   try {
+    // 0. 数据库层去重检查 — 防止同一文件被重复导入
+    const safeFileNameCheck = sanitizeText(fileName);
+    const alreadyExists = await checkFileExists(userId, safeFileNameCheck);
+    if (alreadyExists && !allowOverwrite) {
+      return { success: false, summary: null, error: 'File already imported: ' + safeFileNameCheck + '. Use overwrite to replace.' };
+    }
+
     // 1. 文件大小校验（最大 50MB）
     if (arrayBuffer.byteLength > 50 * 1024 * 1024) {
       return { success: false, summary: null, error: 'File too large (max 50MB)' };
