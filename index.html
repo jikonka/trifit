@@ -386,6 +386,17 @@
     (async function init() {
       currentUser = await requireAuth();
       if (!currentUser) return;
+
+      // 自动清理数据库中的重复活动数据
+      try {
+        const result = await deduplicateActivities(currentUser.id);
+        if (result.cleaned > 0) {
+          console.log('[Dashboard] Auto-cleaned', result.cleaned, 'duplicate activities');
+        }
+      } catch (e) {
+        console.warn('[Dashboard] Deduplication check failed:', e.message);
+      }
+
       await loadDashboardData();
     })();
 

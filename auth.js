@@ -791,6 +791,35 @@ async function saveActivity(userId, activityData) {
     source_file: activityData.sourceFile || null,
   };
 
+  // ★ 去重保护：对于来自 FIT 文件的顶层记录，先检查是否已存在相同记录
+  if (row.source_file && !row.parent_id) {
+    try {
+      const { data: existing } = await _supabase
+        .from('activities')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('source_file', row.source_file)
+        .eq('activity_type', row.activity_type)
+        .eq('date', row.date)
+        .is('parent_id', null)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        console.log('[auth] saveActivity: duplicate detected, skipping insert for', row.source_file, row.activity_type, row.date);
+        // 返回已存在的记录，不重复插入
+        const { data: existingFull } = await _supabase
+          .from('activities')
+          .select('*')
+          .eq('id', existing[0].id)
+          .single();
+        return { data: existingFull, error: null };
+      }
+    } catch (checkErr) {
+      // 去重检查失败不阻断，继续尝试插入
+      console.warn('[auth] saveActivity dedup check failed:', checkErr.message);
+    }
+  }
+
   const { data, error } = await _supabase
     .from('activities')
     .insert(row)
@@ -878,9 +907,13 @@ async function loadActivities(userId, options = {}) {
     const { data, error } = await query;
     if (error) throw error;
 
+    // ★ 客户端去重：对于有 source_file 的记录，按 (source_file, activity_type, date) 去重
+    // 只保留每组中最早创建的那条（data 已按 created_at DESC 排序，所以取最后一个 = 最早的）
+    const deduped = deduplicateResultSet(data || []);
+
     // 如果需要同时加载 Brick 子段
-    if (includeLegs && data) {
-      const brickIds = data
+    if (includeLegs && deduped) {
+      const brickIds = deduped
         .filter(a => a.activity_type === 'brick')
         .map(a => a.id);
 
@@ -899,7 +932,7 @@ async function loadActivities(userId, options = {}) {
           if (!legsMap[leg.parent_id]) legsMap[leg.parent_id] = [];
           legsMap[leg.parent_id].push(leg);
         }
-        for (const activity of data) {
+        for (const activity of deduped) {
           if (activity.activity_type === 'brick') {
             activity.legs = legsMap[activity.id] || [];
           }
@@ -907,11 +940,40 @@ async function loadActivities(userId, options = {}) {
       }
     }
 
-    return data || [];
+    return deduped;
   } catch (e) {
     console.warn('[auth] loadActivities failed:', e.message);
     return [];
   }
+}
+
+/**
+ * 对查询结果做客户端去重
+ * 对于有 source_file 的记录，按 (source_file, activity_type, date) 分组，每组只保留最早创建的那条。
+ * 没有 source_file 的记录（手动录入）不受影响。
+ * 输入已按 date DESC, created_at DESC 排序。
+ * @param {Array} rows - 数据库查询结果
+ * @returns {Array} 去重后的结果
+ */
+function deduplicateResultSet(rows) {
+  if (!rows || rows.length === 0) return rows;
+
+  const seen = new Set();
+  const result = [];
+
+  for (const row of rows) {
+    if (row.source_file) {
+      const key = row.source_file + '||' + row.activity_type + '||' + row.date;
+      if (seen.has(key)) {
+        // 跳过重复（保留了第一个遇到的 = created_at 最新的那条）
+        continue;
+      }
+      seen.add(key);
+    }
+    result.push(row);
+  }
+
+  return result;
 }
 
 /**
@@ -942,7 +1004,7 @@ async function loadActivitiesByType(userId, type, options = {}) {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return deduplicateResultSet(data || []);
   } catch (e) {
     console.warn('[auth] loadActivitiesByType failed:', e.message);
     return [];
