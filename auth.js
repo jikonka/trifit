@@ -684,10 +684,13 @@ async function importFitFile(arrayBuffer, fileName, userId, FitSDK) {
       return { success: false, summary: null, error: 'No activity data found in FIT file' };
     }
 
-    // 6. 存入 Supabase
+    // 6. 存入 Supabase（每条 activity 都记录来源文件名）
+    const safeFileName = sanitizeText(fileName);
     const savedItems = [];
     for (const item of activities) {
       if (item.type === 'brick') {
+        item.parent.sourceFile = safeFileName;
+        item.legs.forEach(leg => { leg.sourceFile = safeFileName; });
         const result = await saveBrickActivity(userId, item.parent, item.legs);
         savedItems.push({
           type: 'brick',
@@ -696,6 +699,7 @@ async function importFitFile(arrayBuffer, fileName, userId, FitSDK) {
           legsCount: item.legs.length,
         });
       } else {
+        item.data.sourceFile = safeFileName;
         const { data } = await saveActivity(userId, item.data);
         savedItems.push({
           type: item.data.activityType,
@@ -751,6 +755,7 @@ async function saveActivity(userId, activityData) {
     max_hr: activityData.maxHr ? parseInt(activityData.maxHr) : null,
     calories: activityData.calories ? parseInt(activityData.calories) : null,
     notes: activityData.notes || null,
+    source_file: activityData.sourceFile || null,
   };
 
   const { data, error } = await _supabase
@@ -926,6 +931,105 @@ async function deleteActivity(activityId) {
   if (error) {
     console.error('[auth] deleteActivity error:', error.message);
     throw error;
+  }
+}
+
+/**
+ * 获取当前用户所有已上传的 FIT 文件名列表（去重）
+ * 返回每个文件名及其关联的顶层 activity 数量、最早日期
+ * @param {string} userId
+ * @returns {Promise<Array<{fileName: string, count: number, firstDate: string, lastDate: string}>>}
+ */
+async function loadUploadedFiles(userId) {
+  try {
+    const { data, error } = await _supabase
+      .from('activities')
+      .select('source_file, date, created_at')
+      .eq('user_id', userId)
+      .not('source_file', 'is', null)
+      .is('parent_id', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 按 source_file 聚合
+    const fileMap = {};
+    for (const row of (data || [])) {
+      const fn = row.source_file;
+      if (!fn) continue;
+      if (!fileMap[fn]) {
+        fileMap[fn] = { fileName: fn, count: 0, firstDate: row.date, lastDate: row.date, latestCreatedAt: row.created_at };
+      }
+      fileMap[fn].count++;
+      if (row.date < fileMap[fn].firstDate) fileMap[fn].firstDate = row.date;
+      if (row.date > fileMap[fn].lastDate) fileMap[fn].lastDate = row.date;
+    }
+
+    // 按最近上传时间排序
+    return Object.values(fileMap).sort((a, b) =>
+      (b.latestCreatedAt || '').localeCompare(a.latestCreatedAt || '')
+    );
+  } catch (e) {
+    console.warn('[auth] loadUploadedFiles failed:', e.message);
+    return [];
+  }
+}
+
+/**
+ * 检查某个文件名是否已存在于用户的活动中
+ * @param {string} userId
+ * @param {string} fileName - 清理后的文件名
+ * @returns {Promise<boolean>}
+ */
+async function checkFileExists(userId, fileName) {
+  try {
+    const safeName = sanitizeText(fileName);
+    const { data, error } = await _supabase
+      .from('activities')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('source_file', safeName)
+      .is('parent_id', null)
+      .limit(1);
+
+    if (error) throw error;
+    return (data && data.length > 0);
+  } catch (e) {
+    console.warn('[auth] checkFileExists failed:', e.message);
+    return false;
+  }
+}
+
+/**
+ * 按文件名删除所有关联的活动（含 Brick 子段通过 CASCADE 自动删除）
+ * @param {string} userId
+ * @param {string} fileName - 清理后的文件名
+ * @returns {Promise<number>} 删除的顶层记录数
+ */
+async function deleteActivitiesByFile(userId, fileName) {
+  try {
+    const safeName = sanitizeText(fileName);
+
+    // 先查出所有顶层记录 ID
+    const { data: topLevel, error: queryError } = await _supabase
+      .from('activities')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('source_file', safeName)
+      .is('parent_id', null);
+
+    if (queryError) throw queryError;
+    if (!topLevel || topLevel.length === 0) return 0;
+
+    // 逐个删除顶层记录（子段通过 CASCADE 自动删除）
+    for (const record of topLevel) {
+      await deleteActivity(record.id);
+    }
+
+    return topLevel.length;
+  } catch (e) {
+    console.error('[auth] deleteActivitiesByFile error:', e.message);
+    throw e;
   }
 }
 

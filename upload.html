@@ -118,21 +118,80 @@
       </div>
     </div>
 
-    <!-- Recent Uploads History -->
-    <section class="mt-12">
-      <h3 class="text-sm font-semibold text-white mb-4">
-        <i class="fas fa-clock-rotate-left text-gray-400 mr-2"></i>Recent Uploads
-      </h3>
+    <!-- Uploaded FIT Files (from database) -->
+    <section class="mt-12" id="uploadedFilesSection">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-white">
+          <i class="fas fa-database text-primary mr-2"></i>Uploaded FIT Files
+        </h3>
+        <span id="uploadedFilesCount" class="text-xs text-gray-500"></span>
+      </div>
       <div class="bg-surface rounded-xl border border-gray-700/50 overflow-hidden">
-        <div id="recentUploads" class="divide-y divide-gray-700/30">
-          <!-- Empty state -->
+        <div id="uploadedFilesList" class="divide-y divide-gray-700/30">
+          <!-- Loading state -->
           <div class="p-8 text-center text-gray-500">
-            <i class="fas fa-inbox text-3xl mb-3 block opacity-50"></i>
-            <p class="text-sm">No uploads yet. Drop a .fit file above to get started.</p>
+            <i class="fas fa-spinner fa-spin text-2xl mb-3 block opacity-50"></i>
+            <p class="text-sm">Loading uploaded files...</p>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- Duplicate File Confirmation Modal -->
+    <div id="duplicateModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="duplicateModalOverlay"></div>
+      <div class="relative bg-surface rounded-2xl border border-gray-700/50 p-6 max-w-md w-full mx-4 card-glow">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-triangle-exclamation text-amber-400"></i>
+          </div>
+          <div>
+            <h3 class="text-white font-semibold">Duplicate File Detected</h3>
+            <p class="text-xs text-gray-400">This file has already been uploaded</p>
+          </div>
+        </div>
+        <div class="bg-dark/60 rounded-lg p-3 mb-5">
+          <p class="text-sm text-gray-300" id="duplicateFileName"></p>
+          <p class="text-xs text-gray-500 mt-1">Overwriting will delete the existing activities from this file and re-import.</p>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <button id="duplicateCancelBtn" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-surfaceLight/30">
+            Cancel
+          </button>
+          <button id="duplicateOverwriteBtn" class="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors">
+            <i class="fas fa-rotate mr-1.5"></i>Overwrite
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete File Confirmation Modal -->
+    <div id="deleteFileModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="deleteFileModalOverlay"></div>
+      <div class="relative bg-surface rounded-2xl border border-gray-700/50 p-6 max-w-md w-full mx-4 card-glow">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-trash-can text-red-400"></i>
+          </div>
+          <div>
+            <h3 class="text-white font-semibold">Delete FIT File Data</h3>
+            <p class="text-xs text-gray-400">This will remove all activities imported from this file</p>
+          </div>
+        </div>
+        <div class="bg-dark/60 rounded-lg p-3 mb-5">
+          <p class="text-sm text-gray-300" id="deleteFileName"></p>
+          <p class="text-xs text-red-400/80 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>This action cannot be undone.</p>
+        </div>
+        <div class="flex gap-3 justify-end">
+          <button id="deleteFileCancelBtn" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-surfaceLight/30">
+            Cancel
+          </button>
+          <button id="deleteFileConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
+            <i class="fas fa-trash-can mr-1.5"></i>Delete
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ============================== -->
     <!-- Manual Activity Entry -->
@@ -406,25 +465,98 @@
         return;
       }
 
-      files.forEach(file => {
-        // 文件大小校验（50MB）
-        if (file.size > 50 * 1024 * 1024) {
-          showNotification(file.name + ': File too large (max 50MB)', 'error');
-          return;
-        }
+      // 逐个处理文件（含重复检测）
+      processFilesSequentially([...files], 0);
+    }
 
-        const fileObj = {
-          id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-          name: file.name,
-          size: file.size,
-          file: file,
-          status: 'parsing',
-          progress: 0,
-          result: null,
-        };
-        uploadedFiles.push(fileObj);
-        renderFileList();
-        parseFitFile(fileObj);
+    /**
+     * 逐个处理文件，每个文件先检查重复
+     */
+    async function processFilesSequentially(files, index) {
+      if (index >= files.length) return;
+
+      const file = files[index];
+
+      // 文件大小校验（50MB）
+      if (file.size > 50 * 1024 * 1024) {
+        showNotification(file.name + ': File too large (max 50MB)', 'error');
+        processFilesSequentially(files, index + 1);
+        return;
+      }
+
+      // 检查重复
+      if (currentUserId) {
+        const exists = await checkFileExists(currentUserId, file.name);
+        if (exists) {
+          // 弹出确认弹窗
+          showDuplicateModal(file, () => {
+            // 覆盖：先删除旧数据再导入
+            startFileImport(file, true, () => processFilesSequentially(files, index + 1));
+          }, () => {
+            // 取消：跳过该文件
+            showNotification(file.name + ': Skipped (duplicate)', 'error');
+            processFilesSequentially(files, index + 1);
+          });
+          return; // 等待用户选择
+        }
+      }
+
+      // 无重复，直接导入
+      startFileImport(file, false, () => processFilesSequentially(files, index + 1));
+    }
+
+    /**
+     * 开始导入单个文件
+     */
+    function startFileImport(file, overwrite, onComplete) {
+      const fileObj = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: file.name,
+        size: file.size,
+        file: file,
+        status: 'parsing',
+        progress: 0,
+        result: null,
+        overwrite: overwrite,
+        onComplete: onComplete,
+      };
+      uploadedFiles.push(fileObj);
+      renderFileList();
+      parseFitFile(fileObj);
+    }
+
+    /**
+     * 显示重复文件确认弹窗
+     */
+    function showDuplicateModal(file, onOverwrite, onCancel) {
+      const modal = document.getElementById('duplicateModal');
+      const fileNameEl = document.getElementById('duplicateFileName');
+      fileNameEl.textContent = file.name;
+      modal.classList.remove('hidden');
+
+      // 清除旧的事件监听器（克隆替换）
+      const overwriteBtn = document.getElementById('duplicateOverwriteBtn');
+      const cancelBtn = document.getElementById('duplicateCancelBtn');
+      const overlay = document.getElementById('duplicateModalOverlay');
+
+      const newOverwriteBtn = overwriteBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      const newOverlay = overlay.cloneNode(true);
+      overwriteBtn.parentNode.replaceChild(newOverwriteBtn, overwriteBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+      overlay.parentNode.replaceChild(newOverlay, overlay);
+
+      newOverwriteBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        onOverwrite();
+      });
+      newCancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        onCancel();
+      });
+      newOverlay.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        onCancel();
       });
     }
 
@@ -433,6 +565,14 @@
      */
     async function parseFitFile(fileObj) {
       try {
+        // Step 0: 如果是覆盖模式，先删除旧数据
+        if (fileObj.overwrite && currentUserId) {
+          fileObj.status = 'parsing';
+          fileObj.progress = 10;
+          renderFileList();
+          await deleteActivitiesByFile(currentUserId, fileObj.name);
+        }
+
         // Step 1: 读取文件为 ArrayBuffer
         fileObj.status = 'parsing';
         fileObj.progress = 20;
@@ -451,13 +591,13 @@
         if (result.success) {
           fileObj.status = 'complete';
           fileObj.result = result.summary;
-          saveToRecent(fileObj);
           showNotification(
             fileObj.name + ': ' + result.summary.activitiesCount + ' activity imported!',
             'success'
           );
-          // 刷新活动列表
+          // 刷新活动列表 + 已上传文件列表
           await refreshActivitiesList();
+          await refreshUploadedFilesList();
         } else {
           fileObj.status = 'error';
           fileObj.result = { error: result.error };
@@ -470,6 +610,11 @@
       }
 
       renderFileList();
+
+      // 继续处理队列中的下一个文件
+      if (typeof fileObj.onComplete === 'function') {
+        fileObj.onComplete();
+      }
     }
 
     /**
@@ -590,84 +735,132 @@
       return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
-    function saveToRecent(fileObj) {
-      const recents = JSON.parse(localStorage.getItem('trifit_recent_uploads') || '[]');
-      const summary = fileObj.result || {};
-      recents.unshift({
-        name: fileObj.name,
-        size: fileObj.size,
-        date: new Date().toISOString(),
-        activitiesCount: summary.activitiesCount || 0,
-        items: (summary.items || []).map(i => ({ type: i.type, date: i.date })),
-      });
-      localStorage.setItem('trifit_recent_uploads', JSON.stringify(recents.slice(0, 50)));
-      renderRecentUploads();
+    /**
+     * 从 Supabase 加载已上传 FIT 文件列表并渲染
+     */
+    async function refreshUploadedFilesList() {
+      if (!currentUserId) return;
+
+      const files = await loadUploadedFiles(currentUserId);
+      renderUploadedFilesList(files);
     }
 
-    function renderRecentUploads() {
-      const recents = JSON.parse(localStorage.getItem('trifit_recent_uploads') || '[]');
-      const container = document.getElementById('recentUploads');
+    /**
+     * 渲染已上传文件列表（使用 DOM API 防 XSS）
+     */
+    function renderUploadedFilesList(files) {
+      const container = document.getElementById('uploadedFilesList');
+      const countEl = document.getElementById('uploadedFilesCount');
 
       // 清空
       while (container.firstChild) container.removeChild(container.firstChild);
 
-      if (recents.length === 0) {
+      // 更新计数
+      countEl.textContent = files.length + ' file' + (files.length !== 1 ? 's' : '');
+
+      if (files.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'p-8 text-center text-gray-500';
         const emptyIcon = document.createElement('i');
         emptyIcon.className = 'fas fa-inbox text-3xl mb-3 block opacity-50';
         const emptyText = document.createElement('p');
         emptyText.className = 'text-sm';
-        emptyText.textContent = 'No uploads yet. Drop a .fit file above to get started.';
+        emptyText.textContent = 'No FIT files uploaded yet. Drop a .fit file above to get started.';
         empty.appendChild(emptyIcon);
         empty.appendChild(emptyText);
         container.appendChild(empty);
         return;
       }
 
-      recents.forEach(r => {
+      files.forEach(f => {
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-4 px-4 py-3 hover:bg-surfaceLight/20 transition-colors';
+        row.className = 'flex items-center gap-4 px-4 py-3 hover:bg-surfaceLight/20 transition-colors group';
 
-        const rIconWrap = document.createElement('div');
-        rIconWrap.className = 'w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0';
-        const rIcon = document.createElement('i');
-        rIcon.className = 'fas fa-file text-green-400 text-xs';
-        rIconWrap.appendChild(rIcon);
+        // File icon
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0';
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-file-lines text-primary text-sm';
+        iconWrap.appendChild(icon);
 
-        const rName = document.createElement('div');
-        rName.className = 'flex-1 min-w-0';
-        const rNameP = document.createElement('p');
-        rNameP.className = 'text-sm text-gray-300 truncate';
-        rNameP.textContent = r.name;
-        rName.appendChild(rNameP);
+        // File info (name + date range)
+        const info = document.createElement('div');
+        info.className = 'flex-1 min-w-0';
+        const nameP = document.createElement('p');
+        nameP.className = 'text-sm text-gray-200 truncate font-medium';
+        nameP.textContent = f.fileName;
+        info.appendChild(nameP);
 
-        // 显示导入的活动类型
-        if (r.items && r.items.length > 0) {
-          const typesP = document.createElement('p');
-          typesP.className = 'text-[10px] text-gray-500';
-          typesP.textContent = r.items.map(i => (i.type || '').toUpperCase()).join(' + ');
-          rName.appendChild(typesP);
+        const metaP = document.createElement('p');
+        metaP.className = 'text-[11px] text-gray-500 mt-0.5';
+        let metaText = f.count + ' activit' + (f.count !== 1 ? 'ies' : 'y');
+        if (f.firstDate) {
+          metaText += ' · ' + f.firstDate;
+          if (f.lastDate && f.lastDate !== f.firstDate) {
+            metaText += ' ~ ' + f.lastDate;
+          }
         }
+        metaP.textContent = metaText;
+        info.appendChild(metaP);
 
-        const rSize = document.createElement('div');
-        rSize.className = 'text-xs text-gray-500 flex-shrink-0';
-        rSize.textContent = formatFileSize(r.size);
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-gray-600 hover:text-red-400 transition-colors p-1.5 opacity-0 group-hover:opacity-100 flex-shrink-0';
+        deleteBtn.title = 'Delete this file\'s data';
+        const deleteIcon = document.createElement('i');
+        deleteIcon.className = 'fas fa-trash-can text-xs';
+        deleteBtn.appendChild(deleteIcon);
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDeleteFileModal(f.fileName);
+        });
 
-        const rDate = document.createElement('div');
-        rDate.className = 'text-xs text-gray-500 flex-shrink-0';
-        rDate.textContent = r.date ? new Date(r.date).toLocaleDateString() : '';
-
-        const rCount = document.createElement('div');
-        rCount.className = 'text-xs text-primary flex-shrink-0';
-        rCount.textContent = r.activitiesCount ? r.activitiesCount + ' act' : '';
-
-        row.appendChild(rIconWrap);
-        row.appendChild(rName);
-        row.appendChild(rSize);
-        row.appendChild(rCount);
-        row.appendChild(rDate);
+        row.appendChild(iconWrap);
+        row.appendChild(info);
+        row.appendChild(deleteBtn);
         container.appendChild(row);
+      });
+    }
+
+    /**
+     * 显示删除文件确认弹窗
+     */
+    function showDeleteFileModal(fileName) {
+      const modal = document.getElementById('deleteFileModal');
+      const fileNameEl = document.getElementById('deleteFileName');
+      fileNameEl.textContent = fileName;
+      modal.classList.remove('hidden');
+
+      // 清除旧的事件监听器（克隆替换）
+      const confirmBtn = document.getElementById('deleteFileConfirmBtn');
+      const cancelBtn = document.getElementById('deleteFileCancelBtn');
+      const overlay = document.getElementById('deleteFileModalOverlay');
+
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      const newOverlay = overlay.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+      overlay.parentNode.replaceChild(newOverlay, overlay);
+
+      newConfirmBtn.addEventListener('click', async () => {
+        newConfirmBtn.disabled = true;
+        newConfirmBtn.textContent = 'Deleting...';
+        try {
+          const count = await deleteActivitiesByFile(currentUserId, fileName);
+          showNotification(fileName + ': ' + count + ' activit' + (count !== 1 ? 'ies' : 'y') + ' deleted', 'success');
+          await refreshUploadedFilesList();
+          await refreshActivitiesList();
+        } catch (err) {
+          showNotification('Delete failed: ' + err.message, 'error');
+        }
+        modal.classList.add('hidden');
+      });
+      newCancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+      newOverlay.addEventListener('click', () => {
+        modal.classList.add('hidden');
       });
     }
 
@@ -680,7 +873,7 @@
       setTimeout(() => div.remove(), 5000);
     }
 
-    renderRecentUploads();
+    // 初始化时会在 initManualEntry 中调用 refreshUploadedFilesList
 
     // =============================================
     // Manual Activity Entry Logic
@@ -725,7 +918,10 @@
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('actDate').value = today;
         document.getElementById('brickDate').value = today;
-        await refreshActivitiesList();
+        await Promise.all([
+          refreshActivitiesList(),
+          refreshUploadedFilesList(),
+        ]);
       }
     })();
 
