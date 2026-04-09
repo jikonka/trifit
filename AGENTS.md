@@ -31,8 +31,8 @@ and adapts schedules to real life.
 
 ## Current Status
 - [ ] M0: Environment setup 
-- [ ] M1: Landing Page + Prompt skills ← YOU ARE HERE
-- [ ] M2: API integration (weather)
+- [ ] M1: Landing Page + Prompt skills 
+- [ ] M2: API integration (weather) ← YOU ARE HERE
 - [ ] M3: Backend + Auth + Database
 - [ ] M4: Data visualization (Dashboard)
 - [ ] M5: .FIT file parsing
