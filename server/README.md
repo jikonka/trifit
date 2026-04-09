@@ -25,21 +25,24 @@ npm start
 
 Server runs at `http://localhost:3001`
 
-## Deploy to Render.com
+## Deploy to Render.com (Free, No Credit Card Required)
 
-1. Go to [render.com](https://render.com) → **New** → **Web Service**
-2. Connect your GitHub repo (`jikonka/trifit`)
-3. Configure:
+1. 打开 [render.com](https://render.com) → 用 **GitHub 账号**注册/登录
+2. 点击 **New** → **Web Service**
+3. 连接你的 GitHub 仓库（`jikonka/trifit`）
+4. 配置：
    - **Name**: `trifit-api`
    - **Root Directory**: `server`
    - **Runtime**: Node
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
-4. Add environment variable:
-   - `OWM_API_KEY` = your OpenWeatherMap API key
-5. Click **Deploy**
+5. 在 **Environment** 中添加环境变量：
+   - `OWM_API_KEY` = 你的 OpenWeatherMap API 密钥
+6. 点击 **Deploy**
 
-Your proxy will be available at `https://trifit-api.onrender.com`
+你的后端地址为：`https://trifit-api.onrender.com`
+
+> ⚠️ 免费层在 15 分钟无访问后会休眠，第一次唤醒请求约需 30-60 秒。
 
 ## API Endpoint
 

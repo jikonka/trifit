@@ -404,10 +404,10 @@
     loadRaceData();
 
     // ===== Weather (via backend proxy — API key never touches the browser) =====
-    // In production, set this to your Render.com URL, e.g. 'https://trifit-api.onrender.com'
+    // Production: Render.com  |  Local dev: localhost:3001
     const WEATHER_API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
-      : 'https://trifit-api.onrender.com';  // TODO: replace with your actual Render URL
+      : 'https://trifit-api.onrender.com';  // TODO: replace with your actual Render URL after deploy
 
     async function loadWeather() {
       // Try geolocation

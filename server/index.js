@@ -10,7 +10,9 @@
  * - No API key is ever sent to the client
  */
 
-require('dotenv').config();
+// Load environment variables (locally from .env.local, on Render from dashboard env vars)
+try { require('dotenv').config({ path: '.env.local' }); } catch (e) {}
+try { require('dotenv').config(); } catch (e) {}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
