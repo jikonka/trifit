@@ -134,6 +134,158 @@
       </div>
     </section>
 
+    <!-- ============================== -->
+    <!-- Manual Activity Entry -->
+    <!-- ============================== -->
+    <section class="mt-12" id="manualEntrySection">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-white">
+          <i class="fas fa-pen-to-square text-primary mr-2"></i>Log Activity Manually
+        </h3>
+        <button id="toggleFormBtn" class="text-xs text-primary hover:text-primary/80 transition-colors">
+          <i class="fas fa-plus mr-1"></i>New Activity
+        </button>
+      </div>
+
+      <!-- Activity Form (hidden by default) -->
+      <div id="activityForm" class="hidden bg-surface rounded-2xl border border-gray-700/50 p-6 card-glow mb-6">
+        <!-- Activity Type Selector -->
+        <div class="mb-5">
+          <label class="block text-xs font-medium text-gray-400 mb-2">Activity Type</label>
+          <div class="grid grid-cols-4 sm:grid-cols-8 gap-2" id="typeSelector">
+            <button data-type="swim" class="type-btn flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-700/50 hover:border-primary/50 transition-all text-gray-400 hover:text-primary">
+              <i class="fas fa-person-swimming text-lg"></i>
+              <span class="text-[10px]">Swim</span>
+            </button>
+            <button data-type="bike" class="type-btn flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-700/50 hover:border-primary/50 transition-all text-gray-400 hover:text-primary">
+              <i class="fas fa-bicycle text-lg"></i>
+              <span class="text-[10px]">Bike</span>
+            </button>
+            <button data-type="run" class="type-btn flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-700/50 hover:border-primary/50 transition-all text-gray-400 hover:text-primary">
+              <i class="fas fa-person-running text-lg"></i>
+              <span class="text-[10px]">Run</span>
+            </button>
+            <button data-type="brick" class="type-btn flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-700/50 hover:border-primary/50 transition-all text-gray-400 hover:text-primary">
+              <i class="fas fa-layer-group text-lg"></i>
+              <span class="text-[10px]">Brick</span>
+            </button>
+            <button data-type="strength" class="type-btn flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-700/50 hover:border-primary/50 transition-all text-gray-400 hover:text-primary">
+              <i class="fas fa-dumbbell text-lg"></i>
+              <span class="text-[10px]">Strength</span>
+            </button>
+            <button data-type="other" class="type-btn flex flex-col items-center gap-1 p-3 rounded-xl border border-gray-700/50 hover:border-primary/50 transition-all text-gray-400 hover:text-primary">
+              <i class="fas fa-ellipsis text-lg"></i>
+              <span class="text-[10px]">Other</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Simple Activity Fields (non-brick) -->
+        <div id="simpleFields">
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Date</label>
+              <input type="date" id="actDate" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Duration (min)</label>
+              <input type="number" id="actDuration" min="0.1" step="0.1" placeholder="e.g. 45" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Distance (m)</label>
+              <input type="number" id="actDistance" min="0" step="1" placeholder="e.g. 5000" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Avg HR</label>
+              <input type="number" id="actAvgHr" min="30" max="250" placeholder="e.g. 145" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Max HR</label>
+              <input type="number" id="actMaxHr" min="30" max="250" placeholder="e.g. 172" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Calories</label>
+              <input type="number" id="actCalories" min="0" placeholder="e.g. 520" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-400 mb-1">Notes (optional)</label>
+            <input type="text" id="actNotes" maxlength="200" placeholder="e.g. Easy recovery run" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+          </div>
+        </div>
+
+        <!-- Brick Fields (shown only when Brick selected) -->
+        <div id="brickFields" class="hidden">
+          <div class="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Date</label>
+              <input type="date" id="brickDate" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-400 mb-1">Notes (optional)</label>
+              <input type="text" id="brickNotes" maxlength="200" placeholder="e.g. Race simulation" class="w-full bg-dark/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50">
+            </div>
+          </div>
+
+          <!-- Brick Legs Container -->
+          <div id="brickLegs" class="space-y-3 mb-4">
+            <!-- Legs will be added here dynamically -->
+          </div>
+
+          <div class="flex gap-2 mb-4">
+            <button id="addLegBtn" class="text-xs text-primary hover:text-primary/80 transition-colors bg-primary/10 rounded-lg px-3 py-1.5">
+              <i class="fas fa-plus mr-1"></i>Add Leg
+            </button>
+            <button id="addT1Btn" class="text-xs text-amber-400 hover:text-amber-300 transition-colors bg-amber-400/10 rounded-lg px-3 py-1.5">
+              <i class="fas fa-arrow-right-arrow-left mr-1"></i>Add T1
+            </button>
+            <button id="addT2Btn" class="text-xs text-amber-400 hover:text-amber-300 transition-colors bg-amber-400/10 rounded-lg px-3 py-1.5">
+              <i class="fas fa-arrow-right-arrow-left mr-1"></i>Add T2
+            </button>
+          </div>
+        </div>
+
+        <!-- Save / Cancel Buttons -->
+        <div class="flex gap-3 justify-end">
+          <button id="cancelActivityBtn" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+          <button id="saveActivityBtn" class="px-5 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/80 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fas fa-save mr-1.5"></i>Save Activity
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== -->
+    <!-- Activities List -->
+    <!-- ============================== -->
+    <section class="mt-8" id="activitiesListSection">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-white">
+          <i class="fas fa-list text-gray-400 mr-2"></i>Recent Activities
+        </h3>
+        <div class="flex items-center gap-2">
+          <select id="filterType" class="bg-dark/60 border border-gray-700/50 rounded-lg px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-primary/50">
+            <option value="">All Types</option>
+            <option value="swim">🏊 Swim</option>
+            <option value="bike">🚴 Bike</option>
+            <option value="run">🏃 Run</option>
+            <option value="brick">🧱 Brick</option>
+            <option value="strength">💪 Strength</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div id="activitiesList" class="space-y-3">
+        <!-- Activities loaded dynamically -->
+      </div>
+      <div id="activitiesEmpty" class="bg-surface rounded-xl border border-gray-700/50 p-8 text-center text-gray-500">
+        <i class="fas fa-clipboard-list text-3xl mb-3 block opacity-50"></i>
+        <p class="text-sm">No activities yet. Log your first workout above!</p>
+      </div>
+    </section>
+
+    <div class="h-8"></div>
+
     <!-- Supported Devices -->
     <section class="mt-12">
       <h3 class="text-sm font-semibold text-white mb-4">
@@ -333,6 +485,529 @@
     }
 
     renderRecentUploads();
+
+    // =============================================
+    // Manual Activity Entry Logic
+    // =============================================
+
+    const ACTIVITY_ICONS = {
+      swim: 'fa-person-swimming',
+      bike: 'fa-bicycle',
+      run: 'fa-person-running',
+      brick: 'fa-layer-group',
+      t1: 'fa-arrow-right-arrow-left',
+      t2: 'fa-arrow-right-arrow-left',
+      strength: 'fa-dumbbell',
+      other: 'fa-ellipsis',
+    };
+    const ACTIVITY_COLORS = {
+      swim: 'text-blue-400',
+      bike: 'text-orange-400',
+      run: 'text-green-400',
+      brick: 'text-purple-400',
+      t1: 'text-amber-400',
+      t2: 'text-amber-400',
+      strength: 'text-red-400',
+      other: 'text-gray-400',
+    };
+    const ACTIVITY_LABELS = {
+      swim: 'Swim', bike: 'Bike', run: 'Run', brick: 'Brick',
+      t1: 'T1 (Swim→Bike)', t2: 'T2 (Bike→Run)',
+      strength: 'Strength', other: 'Other',
+    };
+
+    let selectedType = null;
+    let brickLegs = []; // [{type, durationMin, distanceM, avgHr, maxHr, calories, notes}]
+    let currentUserId = null;
+
+    // Get current user
+    (async function initManualEntry() {
+      const { user } = await getSession();
+      if (user) {
+        currentUserId = user.id;
+        // Set default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('actDate').value = today;
+        document.getElementById('brickDate').value = today;
+        await refreshActivitiesList();
+      }
+    })();
+
+    // Toggle form visibility
+    document.getElementById('toggleFormBtn').addEventListener('click', () => {
+      const form = document.getElementById('activityForm');
+      form.classList.toggle('hidden');
+      if (!form.classList.contains('hidden')) {
+        resetForm();
+      }
+    });
+
+    // Cancel button
+    document.getElementById('cancelActivityBtn').addEventListener('click', () => {
+      document.getElementById('activityForm').classList.add('hidden');
+      resetForm();
+    });
+
+    // Activity type selection
+    document.getElementById('typeSelector').addEventListener('click', (e) => {
+      const btn = e.target.closest('.type-btn');
+      if (!btn) return;
+      const type = btn.dataset.type;
+
+      // Update UI
+      document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.remove('border-primary', 'text-primary', 'bg-primary/10');
+        b.classList.add('border-gray-700/50', 'text-gray-400');
+      });
+      btn.classList.add('border-primary', 'text-primary', 'bg-primary/10');
+      btn.classList.remove('border-gray-700/50', 'text-gray-400');
+
+      selectedType = type;
+
+      // Show/hide brick vs simple fields
+      if (type === 'brick') {
+        document.getElementById('simpleFields').classList.add('hidden');
+        document.getElementById('brickFields').classList.remove('hidden');
+        if (brickLegs.length === 0) {
+          // Default brick template: swim → t1 → bike → t2 → run
+          addBrickLeg('swim');
+          addBrickLeg('t1');
+          addBrickLeg('bike');
+          addBrickLeg('t2');
+          addBrickLeg('run');
+        }
+      } else {
+        document.getElementById('simpleFields').classList.remove('hidden');
+        document.getElementById('brickFields').classList.add('hidden');
+      }
+    });
+
+    // Brick: Add leg buttons
+    document.getElementById('addLegBtn').addEventListener('click', () => addBrickLeg('swim'));
+    document.getElementById('addT1Btn').addEventListener('click', () => addBrickLeg('t1'));
+    document.getElementById('addT2Btn').addEventListener('click', () => addBrickLeg('t2'));
+
+    function addBrickLeg(type) {
+      const legId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      brickLegs.push({ id: legId, type });
+      renderBrickLegs();
+    }
+
+    function removeBrickLeg(legId) {
+      brickLegs = brickLegs.filter(l => l.id !== legId);
+      renderBrickLegs();
+    }
+
+    function renderBrickLegs() {
+      const container = document.getElementById('brickLegs');
+      // Clear children using DOM API
+      while (container.firstChild) container.removeChild(container.firstChild);
+
+      brickLegs.forEach((leg, index) => {
+        const isTransition = (leg.type === 't1' || leg.type === 't2');
+
+        const card = document.createElement('div');
+        card.className = 'bg-dark/40 rounded-xl border border-gray-700/30 p-4';
+
+        // Header row
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between mb-3';
+
+        const headerLeft = document.createElement('div');
+        headerLeft.className = 'flex items-center gap-2';
+
+        const badge = document.createElement('span');
+        badge.className = 'text-xs font-bold px-2 py-0.5 rounded ' +
+          (isTransition ? 'bg-amber-400/20 text-amber-400' : 'bg-primary/20 text-primary');
+        badge.textContent = '#' + (index + 1) + ' ' + ACTIVITY_LABELS[leg.type];
+
+        // Type selector for non-transition legs
+        if (!isTransition) {
+          const typeSelect = document.createElement('select');
+          typeSelect.className = 'bg-dark/60 border border-gray-700/50 rounded px-1.5 py-0.5 text-xs text-gray-300 focus:outline-none ml-2';
+          ['swim', 'bike', 'run'].forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = ACTIVITY_LABELS[t];
+            if (t === leg.type) opt.selected = true;
+            typeSelect.appendChild(opt);
+          });
+          typeSelect.addEventListener('change', () => {
+            leg.type = typeSelect.value;
+            badge.textContent = '#' + (index + 1) + ' ' + ACTIVITY_LABELS[leg.type];
+          });
+          headerLeft.appendChild(badge);
+          headerLeft.appendChild(typeSelect);
+        } else {
+          headerLeft.appendChild(badge);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'text-gray-500 hover:text-red-400 transition-colors text-xs';
+        removeBtn.addEventListener('click', () => removeBrickLeg(leg.id));
+        const removeIcon = document.createElement('i');
+        removeIcon.className = 'fas fa-xmark';
+        removeBtn.appendChild(removeIcon);
+
+        header.appendChild(headerLeft);
+        header.appendChild(removeBtn);
+        card.appendChild(header);
+
+        // Fields row
+        const fields = document.createElement('div');
+        fields.className = isTransition
+          ? 'grid grid-cols-2 gap-3'
+          : 'grid grid-cols-2 sm:grid-cols-3 gap-3';
+
+        // Duration (always)
+        fields.appendChild(createLegField('Duration (min)', 'number', leg.id + '_dur', '0.1', 'e.g. 30'));
+        // Distance (not for transitions)
+        if (!isTransition) {
+          fields.appendChild(createLegField('Distance (m)', 'number', leg.id + '_dist', '1', 'e.g. 5000'));
+        }
+        // Avg HR
+        fields.appendChild(createLegField('Avg HR', 'number', leg.id + '_avghr', '1', 'e.g. 145'));
+        // Max HR (not for transitions)
+        if (!isTransition) {
+          fields.appendChild(createLegField('Max HR', 'number', leg.id + '_maxhr', '1', 'e.g. 172'));
+          fields.appendChild(createLegField('Calories', 'number', leg.id + '_cal', '1', 'e.g. 300'));
+        }
+        // Notes
+        fields.appendChild(createLegField('Notes', 'text', leg.id + '_notes', null, isTransition ? 'e.g. Wet suit off' : 'e.g. Easy pace'));
+
+        card.appendChild(fields);
+        container.appendChild(card);
+      });
+    }
+
+    function createLegField(label, type, id, step, placeholder) {
+      const wrapper = document.createElement('div');
+      const lbl = document.createElement('label');
+      lbl.className = 'block text-[10px] font-medium text-gray-500 mb-1';
+      lbl.textContent = label;
+      const input = document.createElement('input');
+      input.type = type;
+      input.id = 'leg_' + id;
+      if (step) input.step = step;
+      if (type === 'number') input.min = '0';
+      input.placeholder = placeholder || '';
+      input.maxLength = 200;
+      input.className = 'w-full bg-dark/60 border border-gray-700/50 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-primary/50';
+      wrapper.appendChild(lbl);
+      wrapper.appendChild(input);
+      return wrapper;
+    }
+
+    // Save Activity
+    document.getElementById('saveActivityBtn').addEventListener('click', async () => {
+      if (!currentUserId) {
+        showNotification('Please log in first', 'error');
+        return;
+      }
+      if (!selectedType) {
+        showNotification('Please select an activity type', 'error');
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveActivityBtn');
+      saveBtn.disabled = true;
+
+      try {
+        if (selectedType === 'brick') {
+          await saveBrickEntry();
+        } else {
+          await saveSimpleEntry();
+        }
+        showNotification('Activity saved!', 'success');
+        document.getElementById('activityForm').classList.add('hidden');
+        resetForm();
+        await refreshActivitiesList();
+      } catch (err) {
+        showNotification('Failed to save: ' + err.message, 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+
+    async function saveSimpleEntry() {
+      const date = document.getElementById('actDate').value;
+      const durationMin = document.getElementById('actDuration').value;
+      const distanceM = document.getElementById('actDistance').value;
+      const avgHr = document.getElementById('actAvgHr').value;
+      const maxHr = document.getElementById('actMaxHr').value;
+      const calories = document.getElementById('actCalories').value;
+      const notes = document.getElementById('actNotes').value;
+
+      if (!date) throw new Error('Date is required');
+      if (!durationMin || parseFloat(durationMin) <= 0) throw new Error('Duration must be > 0');
+
+      await saveActivity(currentUserId, {
+        activityType: selectedType,
+        date,
+        durationMin,
+        distanceM: distanceM || null,
+        avgHr: avgHr || null,
+        maxHr: maxHr || null,
+        calories: calories || null,
+        notes: notes || null,
+      });
+    }
+
+    async function saveBrickEntry() {
+      const date = document.getElementById('brickDate').value;
+      const notes = document.getElementById('brickNotes').value;
+
+      if (!date) throw new Error('Date is required');
+      if (brickLegs.length === 0) throw new Error('Add at least one leg');
+
+      // Collect leg data
+      const legs = [];
+      let totalDuration = 0;
+      let totalCalories = 0;
+
+      for (const leg of brickLegs) {
+        const dur = document.getElementById('leg_' + leg.id + '_dur')?.value;
+        if (!dur || parseFloat(dur) <= 0) throw new Error('Each leg needs a duration > 0');
+        const legDuration = parseFloat(dur);
+        totalDuration += legDuration;
+
+        const isTransition = (leg.type === 't1' || leg.type === 't2');
+        const dist = !isTransition ? (document.getElementById('leg_' + leg.id + '_dist')?.value || null) : null;
+        const avgHr = document.getElementById('leg_' + leg.id + '_avghr')?.value || null;
+        const maxHr = !isTransition ? (document.getElementById('leg_' + leg.id + '_maxhr')?.value || null) : null;
+        const cal = !isTransition ? (document.getElementById('leg_' + leg.id + '_cal')?.value || null) : null;
+        const legNotes = document.getElementById('leg_' + leg.id + '_notes')?.value || null;
+
+        if (cal) totalCalories += parseInt(cal);
+
+        legs.push({
+          activityType: leg.type,
+          durationMin: dur,
+          distanceM: dist,
+          avgHr: avgHr,
+          maxHr: maxHr,
+          calories: cal,
+          notes: legNotes,
+        });
+      }
+
+      await saveBrickActivity(currentUserId, {
+        date,
+        durationMin: totalDuration.toFixed(1),
+        calories: totalCalories || null,
+        notes: notes || null,
+      }, legs);
+    }
+
+    function resetForm() {
+      selectedType = null;
+      brickLegs = [];
+      document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.remove('border-primary', 'text-primary', 'bg-primary/10');
+        b.classList.add('border-gray-700/50', 'text-gray-400');
+      });
+      document.getElementById('simpleFields').classList.remove('hidden');
+      document.getElementById('brickFields').classList.add('hidden');
+      document.getElementById('actDuration').value = '';
+      document.getElementById('actDistance').value = '';
+      document.getElementById('actAvgHr').value = '';
+      document.getElementById('actMaxHr').value = '';
+      document.getElementById('actCalories').value = '';
+      document.getElementById('actNotes').value = '';
+      document.getElementById('brickNotes').value = '';
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('actDate').value = today;
+      document.getElementById('brickDate').value = today;
+      const legsContainer = document.getElementById('brickLegs');
+      while (legsContainer.firstChild) legsContainer.removeChild(legsContainer.firstChild);
+    }
+
+    // =============================================
+    // Activities List
+    // =============================================
+
+    // Filter change
+    document.getElementById('filterType').addEventListener('change', () => refreshActivitiesList());
+
+    async function refreshActivitiesList() {
+      if (!currentUserId) return;
+
+      const filterType = document.getElementById('filterType').value;
+      const activities = await loadActivities(currentUserId, {
+        type: filterType || undefined,
+        topLevelOnly: true,
+        includeLegs: true,
+        limit: 30,
+      });
+
+      const container = document.getElementById('activitiesList');
+      const emptyState = document.getElementById('activitiesEmpty');
+
+      // Clear using DOM API
+      while (container.firstChild) container.removeChild(container.firstChild);
+
+      if (activities.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      activities.forEach(activity => {
+        const card = createActivityCard(activity);
+        container.appendChild(card);
+      });
+    }
+
+    function createActivityCard(activity) {
+      const card = document.createElement('div');
+      card.className = 'bg-surface rounded-xl border border-gray-700/50 p-4 hover:border-gray-600/50 transition-all';
+
+      // Top row: type icon + info + delete button
+      const topRow = document.createElement('div');
+      topRow.className = 'flex items-start gap-3';
+
+      // Icon
+      const iconWrap = document.createElement('div');
+      iconWrap.className = 'w-10 h-10 rounded-lg bg-dark/60 flex items-center justify-center flex-shrink-0';
+      const icon = document.createElement('i');
+      icon.className = 'fas ' + (ACTIVITY_ICONS[activity.activity_type] || 'fa-circle') + ' ' + (ACTIVITY_COLORS[activity.activity_type] || 'text-gray-400');
+      iconWrap.appendChild(icon);
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'flex-1 min-w-0';
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'flex items-center gap-2 mb-1';
+      const title = document.createElement('span');
+      title.className = 'text-sm font-medium text-white';
+      title.textContent = ACTIVITY_LABELS[activity.activity_type] || activity.activity_type;
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'text-xs text-gray-500';
+      dateSpan.textContent = activity.date;
+      titleRow.appendChild(title);
+      titleRow.appendChild(dateSpan);
+      info.appendChild(titleRow);
+
+      // Stats row
+      const statsRow = document.createElement('div');
+      statsRow.className = 'flex flex-wrap gap-3 text-xs text-gray-400';
+
+      if (activity.duration_min) {
+        statsRow.appendChild(createStatBadge('fa-clock', formatDuration(activity.duration_min)));
+      }
+      if (activity.distance_m) {
+        statsRow.appendChild(createStatBadge('fa-route', formatDistance(activity.distance_m)));
+      }
+      if (activity.avg_hr) {
+        statsRow.appendChild(createStatBadge('fa-heart-pulse', activity.avg_hr + ' bpm'));
+      }
+      if (activity.calories) {
+        statsRow.appendChild(createStatBadge('fa-fire', activity.calories + ' cal'));
+      }
+      info.appendChild(statsRow);
+
+      // Notes
+      if (activity.notes) {
+        const notesP = document.createElement('p');
+        notesP.className = 'text-xs text-gray-500 mt-1 truncate';
+        notesP.textContent = activity.notes;
+        info.appendChild(notesP);
+      }
+
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'text-gray-500 hover:text-red-400 transition-colors p-1 flex-shrink-0';
+      deleteBtn.title = 'Delete';
+      deleteBtn.addEventListener('click', async () => {
+        if (!confirm('Delete this activity?')) return;
+        try {
+          await deleteActivity(activity.id);
+          showNotification('Activity deleted', 'success');
+          await refreshActivitiesList();
+        } catch (err) {
+          showNotification('Delete failed: ' + err.message, 'error');
+        }
+      });
+      const delIcon = document.createElement('i');
+      delIcon.className = 'fas fa-trash-can text-xs';
+      deleteBtn.appendChild(delIcon);
+
+      topRow.appendChild(iconWrap);
+      topRow.appendChild(info);
+      topRow.appendChild(deleteBtn);
+      card.appendChild(topRow);
+
+      // Brick legs (if any)
+      if (activity.activity_type === 'brick' && activity.legs && activity.legs.length > 0) {
+        const legsWrap = document.createElement('div');
+        legsWrap.className = 'mt-3 pl-13 space-y-1.5 ml-[52px]';
+
+        activity.legs.forEach(leg => {
+          const legRow = document.createElement('div');
+          legRow.className = 'flex items-center gap-2 text-xs';
+
+          const legIcon = document.createElement('i');
+          legIcon.className = 'fas ' + (ACTIVITY_ICONS[leg.activity_type] || 'fa-circle') + ' ' +
+            (ACTIVITY_COLORS[leg.activity_type] || 'text-gray-400') + ' w-4 text-center';
+          legRow.appendChild(legIcon);
+
+          const legLabel = document.createElement('span');
+          legLabel.className = 'text-gray-400 w-20 flex-shrink-0';
+          legLabel.textContent = ACTIVITY_LABELS[leg.activity_type] || leg.activity_type;
+          legRow.appendChild(legLabel);
+
+          if (leg.duration_min) {
+            const durSpan = document.createElement('span');
+            durSpan.className = 'text-gray-500';
+            durSpan.textContent = formatDuration(leg.duration_min);
+            legRow.appendChild(durSpan);
+          }
+          if (leg.distance_m) {
+            const distSpan = document.createElement('span');
+            distSpan.className = 'text-gray-500 ml-2';
+            distSpan.textContent = formatDistance(leg.distance_m);
+            legRow.appendChild(distSpan);
+          }
+          if (leg.avg_hr) {
+            const hrSpan = document.createElement('span');
+            hrSpan.className = 'text-gray-500 ml-2';
+            hrSpan.textContent = leg.avg_hr + ' bpm';
+            legRow.appendChild(hrSpan);
+          }
+
+          legsWrap.appendChild(legRow);
+        });
+
+        card.appendChild(legsWrap);
+      }
+
+      return card;
+    }
+
+    function createStatBadge(iconClass, text) {
+      const badge = document.createElement('span');
+      badge.className = 'flex items-center gap-1';
+      const i = document.createElement('i');
+      i.className = 'fas ' + iconClass + ' text-[10px] opacity-60';
+      badge.appendChild(i);
+      badge.appendChild(document.createTextNode(text));
+      return badge;
+    }
+
+    function formatDuration(mins) {
+      const m = parseFloat(mins);
+      if (m < 60) return m.toFixed(0) + ' min';
+      const h = Math.floor(m / 60);
+      const remain = Math.round(m % 60);
+      return h + 'h ' + (remain > 0 ? remain + 'm' : '');
+    }
+
+    function formatDistance(meters) {
+      const m = parseFloat(meters);
+      if (m >= 1000) return (m / 1000).toFixed(1) + ' km';
+      return m.toFixed(0) + ' m';
+    }
   </script>
 </body>
 </html>

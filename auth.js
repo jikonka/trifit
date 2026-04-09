@@ -457,6 +457,246 @@ async function loadEquipment(userId) {
 }
 
 // =============================================
+// Activities CRUD（训练活动记录）
+// =============================================
+
+/**
+ * 保存一条训练活动（独立训练或 Brick 子段）
+ * @param {string} userId
+ * @param {object} activityData
+ * @param {string} activityData.activityType - swim/bike/run/brick/t1/t2/strength/other
+ * @param {string} activityData.date - YYYY-MM-DD
+ * @param {number} [activityData.durationMin]
+ * @param {number} [activityData.distanceM]
+ * @param {number} [activityData.avgHr]
+ * @param {number} [activityData.maxHr]
+ * @param {number} [activityData.calories]
+ * @param {string} [activityData.notes]
+ * @param {string} [activityData.parentId] - Brick 父记录 ID（子段必填）
+ * @returns {Promise<{data: object|null, error: object|null}>}
+ */
+async function saveActivity(userId, activityData) {
+  const row = {
+    user_id: userId,
+    parent_id: activityData.parentId || null,
+    activity_type: activityData.activityType,
+    date: activityData.date || new Date().toISOString().split('T')[0],
+    duration_min: activityData.durationMin ? parseFloat(activityData.durationMin) : null,
+    distance_m: activityData.distanceM ? parseFloat(activityData.distanceM) : null,
+    avg_hr: activityData.avgHr ? parseInt(activityData.avgHr) : null,
+    max_hr: activityData.maxHr ? parseInt(activityData.maxHr) : null,
+    calories: activityData.calories ? parseInt(activityData.calories) : null,
+    notes: activityData.notes || null,
+  };
+
+  const { data, error } = await _supabase
+    .from('activities')
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[auth] saveActivity error:', error.message);
+    throw error;
+  }
+  return { data, error: null };
+}
+
+/**
+ * 保存一次完整的 Brick 训练（父记录 + 所有子段，含 T1/T2）
+ * 事务性：先插入 Brick 父记录，再插入所有子段
+ * @param {string} userId
+ * @param {object} brickData - 父记录数据（activityType 固定为 'brick'）
+ * @param {Array<object>} legs - 子段数组，按顺序（如 [swim, t1, bike, t2, run]）
+ * @returns {Promise<{parent: object, legs: Array}>}
+ */
+async function saveBrickActivity(userId, brickData, legs) {
+  // 1. 插入 Brick 父记录
+  const { data: parent } = await saveActivity(userId, {
+    ...brickData,
+    activityType: 'brick',
+  });
+
+  // 2. 插入所有子段，绑定 parentId
+  const savedLegs = [];
+  for (const leg of legs) {
+    const { data: savedLeg } = await saveActivity(userId, {
+      ...leg,
+      parentId: parent.id,
+      date: brickData.date, // 子段继承父记录日期
+    });
+    savedLegs.push(savedLeg);
+  }
+
+  return { parent, legs: savedLegs };
+}
+
+/**
+ * 加载训练活动列表
+ * @param {string} userId
+ * @param {object} [options]
+ * @param {string} [options.type] - 按运动类型筛选 (swim/bike/run/brick/t1/t2/strength/other)
+ * @param {string} [options.from] - 起始日期 (YYYY-MM-DD)
+ * @param {string} [options.to] - 结束日期 (YYYY-MM-DD)
+ * @param {boolean} [options.topLevelOnly] - 只返回顶层记录（不含 Brick 子段）
+ * @param {boolean} [options.includeLegs] - 同时返回 Brick 子段（默认 false）
+ * @param {number} [options.limit] - 返回条数限制（默认 50）
+ * @returns {Promise<Array>}
+ */
+async function loadActivities(userId, options = {}) {
+  const { type, from, to, topLevelOnly = false, includeLegs = false, limit = 50 } = options;
+
+  try {
+    let query = _supabase
+      .from('activities')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    // 按运动类型筛选
+    if (type) {
+      query = query.eq('activity_type', type);
+    }
+
+    // 按日期范围筛选
+    if (from) {
+      query = query.gte('date', from);
+    }
+    if (to) {
+      query = query.lte('date', to);
+    }
+
+    // 只返回顶层记录（排除 Brick 子段）
+    if (topLevelOnly) {
+      query = query.is('parent_id', null);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // 如果需要同时加载 Brick 子段
+    if (includeLegs && data) {
+      const brickIds = data
+        .filter(a => a.activity_type === 'brick')
+        .map(a => a.id);
+
+      if (brickIds.length > 0) {
+        const { data: legs, error: legsError } = await _supabase
+          .from('activities')
+          .select('*')
+          .in('parent_id', brickIds)
+          .order('created_at', { ascending: true });
+
+        if (legsError) throw legsError;
+
+        // 把子段挂到对应的 Brick 父记录上
+        const legsMap = {};
+        for (const leg of (legs || [])) {
+          if (!legsMap[leg.parent_id]) legsMap[leg.parent_id] = [];
+          legsMap[leg.parent_id].push(leg);
+        }
+        for (const activity of data) {
+          if (activity.activity_type === 'brick') {
+            activity.legs = legsMap[activity.id] || [];
+          }
+        }
+      }
+    }
+
+    return data || [];
+  } catch (e) {
+    console.warn('[auth] loadActivities failed:', e.message);
+    return [];
+  }
+}
+
+/**
+ * 加载某个运动类型的所有数据（含独立训练 + Brick 中的对应子段）
+ * 用于图表分析：如查询所有 Bike 数据，会同时返回独立 Bike 和 Brick 里的 Bike 段
+ * @param {string} userId
+ * @param {string} type - swim/bike/run/t1/t2
+ * @param {object} [options]
+ * @param {string} [options.from] - 起始日期
+ * @param {string} [options.to] - 结束日期
+ * @param {number} [options.limit] - 返回条数限制（默认 100）
+ * @returns {Promise<Array>}
+ */
+async function loadActivitiesByType(userId, type, options = {}) {
+  const { from, to, limit = 100 } = options;
+
+  try {
+    let query = _supabase
+      .from('activities')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('activity_type', type)
+      .order('date', { ascending: false })
+      .limit(limit);
+
+    if (from) query = query.gte('date', from);
+    if (to) query = query.lte('date', to);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('[auth] loadActivitiesByType failed:', e.message);
+    return [];
+  }
+}
+
+/**
+ * 删除一条训练活动
+ * 如果是 Brick 父记录，子段会通过数据库 CASCADE 自动删除
+ * @param {string} activityId
+ * @returns {Promise<void>}
+ */
+async function deleteActivity(activityId) {
+  const { error } = await _supabase
+    .from('activities')
+    .delete()
+    .eq('id', activityId);
+
+  if (error) {
+    console.error('[auth] deleteActivity error:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 更新一条训练活动
+ * @param {string} activityId
+ * @param {object} updates - 要更新的字段
+ * @returns {Promise<object>}
+ */
+async function updateActivity(activityId, updates) {
+  const row = {};
+  if (updates.activityType !== undefined) row.activity_type = updates.activityType;
+  if (updates.date !== undefined) row.date = updates.date;
+  if (updates.durationMin !== undefined) row.duration_min = updates.durationMin ? parseFloat(updates.durationMin) : null;
+  if (updates.distanceM !== undefined) row.distance_m = updates.distanceM ? parseFloat(updates.distanceM) : null;
+  if (updates.avgHr !== undefined) row.avg_hr = updates.avgHr ? parseInt(updates.avgHr) : null;
+  if (updates.maxHr !== undefined) row.max_hr = updates.maxHr ? parseInt(updates.maxHr) : null;
+  if (updates.calories !== undefined) row.calories = updates.calories ? parseInt(updates.calories) : null;
+  if (updates.notes !== undefined) row.notes = updates.notes || null;
+
+  const { data, error } = await _supabase
+    .from('activities')
+    .update(row)
+    .eq('id', activityId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[auth] updateActivity error:', error.message);
+    throw error;
+  }
+  return data;
+}
+
+// =============================================
 // 设置历史记录
 // =============================================
 

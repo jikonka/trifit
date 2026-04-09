@@ -227,3 +227,59 @@ const SUPABASE_ANON_KEY = '你的anon-key';
 - ✅ 邮箱确认已开启
 
 接下来回到项目，刷新页面就可以使用注册/登录功能了！
+
+---
+
+## M4 补充：Activities 表（训练活动记录）
+
+### 建表 SQL（含 Brick + T1/T2 换项）
+
+在 SQL Editor 中运行：
+
+```sql
+-- 如需重建：DROP TABLE IF EXISTS activities CASCADE;
+
+CREATE TABLE activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES activities(id) ON DELETE CASCADE,
+  activity_type TEXT NOT NULL CHECK (activity_type IN (
+    'swim', 'bike', 'run',
+    'brick',
+    't1', 't2',
+    'strength', 'other'
+  )),
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  duration_min NUMERIC(6,1) CHECK (duration_min > 0),
+  distance_m NUMERIC(10,1) CHECK (distance_m >= 0),
+  avg_hr INTEGER CHECK (avg_hr > 0 AND avg_hr < 300),
+  max_hr INTEGER CHECK (max_hr > 0 AND max_hr < 300),
+  calories INTEGER CHECK (calories >= 0),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_activities_user ON activities(user_id);
+CREATE INDEX idx_activities_user_date ON activities(user_id, date DESC);
+CREATE INDEX idx_activities_user_type ON activities(user_id, activity_type);
+CREATE INDEX idx_activities_parent ON activities(parent_id);
+
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own activities"
+  ON activities FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own activities"
+  ON activities FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own activities"
+  ON activities FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own activities"
+  ON activities FOR DELETE USING (auth.uid() = user_id);
+```
+
+### 数据模型说明
+
+- **独立训练**：`parent_id = NULL`，直接存储
+- **Brick 训练**：父记录 `activity_type = 'brick'`，子段通过 `parent_id` 关联
+- **换项**：`t1`（Swim→Bike）、`t2`（Bike→Run）作为 Brick 子段
+- **查询单项**：`WHERE activity_type = 'bike'` 会同时返回独立 Bike + Brick 中的 Bike 段
+- **级联删除**：删除 Brick 父记录时，所有子段自动删除
