@@ -88,9 +88,14 @@ async function requireAuth(options = {}) {
  * @returns {Promise<{data: object|null, error: object|null}>}
  */
 async function signUp(email, password) {
+  // 根据当前部署环境构建确认邮件跳转地址
+  const siteBase = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
   const { data, error } = await _supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: siteBase + '/index.html',
+    },
   });
   return { data, error };
 }
