@@ -282,4 +282,47 @@ CREATE POLICY "Users can delete own activities"
 - **Brick 训练**：父记录 `activity_type = 'brick'`，子段通过 `parent_id` 关联
 - **换项**：`t1`（Swim→Bike）、`t2`（Bike→Run）作为 Brick 子段
 - **查询单项**：`WHERE activity_type = 'bike'` 会同时返回独立 Bike + Brick 中的 Bike 段
+
+---
+
+## M5：FIT 文件导入功能
+
+### 概述
+
+Upload 页面现在支持直接拖放 Garmin `.fit` 文件，浏览器端解析并存入 Supabase `activities` 表。
+
+### 技术实现
+
+- **解析库**：Garmin 官方 FIT JavaScript SDK (`@garmin/fitsdk@21.200.0`)
+- **加载方式**：通过 `esm.sh` CDN 以 ES Module 形式动态导入
+- **处理流程**：`FileReader.readAsArrayBuffer()` → `Decoder.read()` → `extractActivitiesFromFit()` → `saveActivity()` / `saveBrickActivity()`
+
+### 数据映射（FIT sport → activity_type）
+
+| FIT Sport | activity_type |
+|-----------|--------------|
+| swimming / open_water_swimming / lap_swimming | swim |
+| cycling / e_biking | bike |
+| running | run |
+| transition（第1次） | t1 |
+| transition（第2次） | t2 |
+| strength_training | strength |
+| multisport | brick（自动创建父记录 + 子段） |
+| 其他 | other |
+
+### 多运动（Brick/Triathlon）自动识别
+
+- 当 FIT 文件包含 **多个 session** 时，自动识别为 Brick 训练
+- 创建 `activity_type = 'brick'` 的父记录
+- 各 session 作为子段，通过 `parent_id` 关联
+- Transition 会自动按顺序区分为 T1（Swim→Bike）和 T2（Bike→Run）
+
+### 安全措施
+
+- 文件大小限制：50MB（前端 + 后端双重校验）
+- FIT 格式校验：`Decoder.isFIT()` 在解析前验证
+- 文件名清理：`sanitizeText()` 过滤特殊字符防 XSS
+- DOM 渲染：全部使用 `createElement` / `textContent`，零 `innerHTML`
+- RLS 保护：所有写入通过已有 CRUD 函数，RLS 限制 `user_id = auth.uid()`
+- CDN 版本锁定：`@21.200.0` 固定版本，防供应链攻击
 - **级联删除**：删除 Brick 父记录时，所有子段自动删除

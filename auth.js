@@ -457,6 +457,270 @@ async function loadEquipment(userId) {
 }
 
 // =============================================
+// FIT 文件解析与数据映射
+// =============================================
+
+/**
+ * 从 Garmin FIT SDK 解析结果中提取训练活动数据
+ * 将 FIT sessions/records 映射为 activities 表结构
+ * 
+ * @param {object} fitMessages - Garmin FIT SDK decoder.read() 返回的 messages 对象
+ * @param {string} fileName - 原始文件名（用于 notes 备注）
+ * @returns {Array<object>} 可直接传给 saveActivity() 的数据数组
+ */
+function extractActivitiesFromFit(fitMessages, fileName) {
+  const results = [];
+
+  // FIT sport enum → 我们的 activity_type 映射
+  const SPORT_MAP = {
+    'swimming': 'swim',
+    'cycling': 'bike',
+    'running': 'run',
+    'transition': 't1', // 后面会根据顺序区分 t1/t2
+    'strength_training': 'strength',
+    'generic': 'other',
+    'training': 'other',
+    'walking': 'other',
+    'hiking': 'other',
+    'e_biking': 'bike',
+    'open_water_swimming': 'swim',
+    'lap_swimming': 'swim',
+    'multisport': 'brick',
+  };
+
+  // 数字 sport enum 映射（Garmin 设备有时返回数字而非字符串）
+  const SPORT_NUM_MAP = {
+    0: 'other',     // generic
+    1: 'run',       // running
+    2: 'bike',      // cycling
+    3: 'other',     // transition (处理为独立换项时用)
+    5: 'swim',      // swimming
+    11: 'other',    // walking
+    13: 'strength', // strength_training
+    17: 'other',    // hiking
+    20: 'strength', // floor_climbing
+    23: 'swim',     // open_water_swimming
+    26: 'swim',     // lap_swimming
+    53: 'bike',     // e_biking
+  };
+
+  const sessions = fitMessages.sessionMesgs || fitMessages.sessions || [];
+
+  if (sessions.length === 0) {
+    // 没有 session，尝试从 activity 级别提取
+    return results;
+  }
+
+  // 检测是否为多运动（brick/triathlon）
+  const isMultiSport = sessions.length > 1;
+
+  if (isMultiSport) {
+    // 多运动：创建 brick 父记录 + 各段子记录
+    const brickData = {
+      activityType: 'brick',
+      date: null,
+      durationMin: 0,
+      distanceM: 0,
+      calories: 0,
+      avgHr: null,
+      maxHr: null,
+      notes: 'FIT import: ' + sanitizeText(fileName),
+    };
+
+    const legs = [];
+    let transitionCount = 0;
+
+    for (const session of sessions) {
+      const leg = mapSessionToActivity(session, SPORT_MAP, SPORT_NUM_MAP);
+
+      // 累加到父记录
+      if (!brickData.date) brickData.date = leg.date;
+      brickData.durationMin += (leg.durationMin || 0);
+      brickData.distanceM += (leg.distanceM || 0);
+      brickData.calories += (leg.calories || 0);
+
+      // 换项区分 T1 vs T2
+      if (leg.activityType === 't1') {
+        transitionCount++;
+        leg.activityType = transitionCount <= 1 ? 't1' : 't2';
+      }
+
+      legs.push(leg);
+    }
+
+    // 四舍五入
+    brickData.durationMin = Math.round(brickData.durationMin * 10) / 10;
+    brickData.distanceM = Math.round(brickData.distanceM);
+    brickData.calories = brickData.calories || null;
+
+    results.push({ type: 'brick', parent: brickData, legs });
+  } else {
+    // 单运动
+    const session = sessions[0];
+    const activity = mapSessionToActivity(session, SPORT_MAP, SPORT_NUM_MAP);
+    activity.notes = 'FIT import: ' + sanitizeText(fileName);
+    results.push({ type: 'single', data: activity });
+  }
+
+  return results;
+}
+
+/**
+ * 将单个 FIT session 消息映射为 activity 数据
+ * @param {object} session - FIT SDK session message
+ * @param {object} sportMap - 字符串 sport 映射表
+ * @param {object} sportNumMap - 数字 sport 映射表
+ * @returns {object} activity 数据
+ */
+function mapSessionToActivity(session, sportMap, sportNumMap) {
+  // 识别运动类型
+  let activityType = 'other';
+  const sport = session.sport;
+  if (typeof sport === 'string') {
+    activityType = sportMap[sport.toLowerCase()] || 'other';
+  } else if (typeof sport === 'number') {
+    activityType = sportNumMap[sport] || 'other';
+  }
+
+  // 提取日期 — FIT SDK convertDateTimesToDates=true 时返回 JS Date
+  let date = null;
+  const ts = session.startTime || session.timestamp;
+  if (ts instanceof Date) {
+    date = ts.toISOString().split('T')[0];
+  } else if (typeof ts === 'string') {
+    date = ts.split('T')[0];
+  } else {
+    date = new Date().toISOString().split('T')[0];
+  }
+
+  // 时长（秒 → 分钟）
+  const totalTimerTime = session.totalTimerTime || session.totalElapsedTime || 0;
+  const durationMin = Math.round((totalTimerTime / 60) * 10) / 10;
+
+  // 距离（FIT SDK 默认返回米，如设了 lengthUnit 可能是 km）
+  let distanceM = session.totalDistance || null;
+  if (distanceM !== null) {
+    distanceM = Math.round(distanceM);
+  }
+
+  // 心率
+  const avgHr = session.avgHeartRate || session.avgHr || null;
+  const maxHr = session.maxHeartRate || session.maxHr || null;
+
+  // 卡路里
+  const calories = session.totalCalories || null;
+
+  return {
+    activityType,
+    date,
+    durationMin: durationMin || null,
+    distanceM,
+    avgHr: avgHr ? Math.round(avgHr) : null,
+    maxHr: maxHr ? Math.round(maxHr) : null,
+    calories: calories ? Math.round(calories) : null,
+    notes: null,
+  };
+}
+
+/**
+ * 安全文本清理 — 去除潜在 XSS 载荷
+ * 只保留文件名安全字符
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeText(text) {
+  if (!text) return '';
+  // 只保留字母、数字、下划线、连字符、点、空格
+  return text.replace(/[^a-zA-Z0-9_\-.\s]/g, '').substring(0, 100);
+}
+
+/**
+ * 完整流程：解析 FIT ArrayBuffer → 存入 Supabase
+ * 供 upload.html 调用
+ * 
+ * @param {ArrayBuffer} arrayBuffer - FIT 文件二进制数据
+ * @param {string} fileName - 文件名
+ * @param {string} userId - 当前用户 ID
+ * @param {object} FitSDK - Garmin FIT SDK 模块 { Decoder, Stream }
+ * @returns {Promise<{success: boolean, summary: object, error?: string}>}
+ */
+async function importFitFile(arrayBuffer, fileName, userId, FitSDK) {
+  const { Decoder, Stream } = FitSDK;
+
+  try {
+    // 1. 文件大小校验（最大 50MB）
+    if (arrayBuffer.byteLength > 50 * 1024 * 1024) {
+      return { success: false, summary: null, error: 'File too large (max 50MB)' };
+    }
+
+    // 2. 创建 Stream
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const stream = Stream.fromArrayBuffer(uint8Array.buffer);
+
+    // 3. 校验 FIT 格式
+    if (!Decoder.isFIT(stream)) {
+      return { success: false, summary: null, error: 'Not a valid FIT file' };
+    }
+
+    // 4. 创建 Decoder 并解析
+    const decoder = new Decoder(stream);
+    const { messages, errors } = decoder.read({
+      applyScaleAndOffset: true,
+      expandSubFields: true,
+      expandComponents: true,
+      convertTypesToStrings: true,
+      convertDateTimesToDates: true,
+      mergeHeartRates: true,
+    });
+
+    if (errors && errors.length > 0) {
+      console.warn('[FIT] Decode warnings:', errors);
+    }
+
+    // 5. 提取活动数据
+    const activities = extractActivitiesFromFit(messages, fileName);
+
+    if (activities.length === 0) {
+      return { success: false, summary: null, error: 'No activity data found in FIT file' };
+    }
+
+    // 6. 存入 Supabase
+    const savedItems = [];
+    for (const item of activities) {
+      if (item.type === 'brick') {
+        const result = await saveBrickActivity(userId, item.parent, item.legs);
+        savedItems.push({
+          type: 'brick',
+          date: item.parent.date,
+          durationMin: item.parent.durationMin,
+          legsCount: item.legs.length,
+        });
+      } else {
+        const { data } = await saveActivity(userId, item.data);
+        savedItems.push({
+          type: item.data.activityType,
+          date: item.data.date,
+          durationMin: item.data.durationMin,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      summary: {
+        fileName: sanitizeText(fileName),
+        activitiesCount: savedItems.length,
+        items: savedItems,
+      },
+      error: null,
+    };
+  } catch (err) {
+    console.error('[FIT] Import error:', err);
+    return { success: false, summary: null, error: err.message || 'Unknown error' };
+  }
+}
+
+// =============================================
 // Activities CRUD（训练活动记录）
 // =============================================
 
