@@ -361,37 +361,66 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_unique_source
   WHERE source_file IS NOT NULL AND parent_id IS NULL;
 ```
 
-### 清理已有重复数据
+### 清理已有重复数据（强烈建议直接用 SQL，一次性修复）
 
-如果数据库中已存在重复记录，在创建唯一索引前需要先清理。有两种方式：
+如果你已经看到重复，建议直接在 Supabase SQL Editor 执行下面这段**完整事务脚本**。它会：
+1) 回填旧数据的 `source_file`（从 `notes = 'FIT import: ...'` 提取）
+2) 删除重复，仅保留每组最早一条
+3) 创建唯一索引，永久阻止再次重复入库
 
-**方式 A：通过应用自动清理**（推荐）  
-打开 Upload 页面，页面加载时会自动调用 `deduplicateActivities()` 清理重复数据。
-
-**方式 B：通过 SQL 手动清理**  
 ```sql
--- 查看重复记录（不删除，先预览）
-SELECT source_file, activity_type, date, COUNT(*) as cnt
+BEGIN;
+
+-- 0) 先把旧数据（source_file 为空）从 notes 回填出来
+UPDATE activities
+SET source_file = TRIM(SUBSTRING(notes FROM '^FIT import:\s*(.+)$'))
+WHERE parent_id IS NULL
+  AND source_file IS NULL
+  AND notes ~* '^FIT import:\s*.+$';
+
+-- 1) 删除重复（按 user_id + source_file + activity_type + date 分组，保留最早创建）
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY user_id, source_file, activity_type, date
+      ORDER BY created_at ASC, id ASC
+    ) AS rn
+  FROM activities
+  WHERE parent_id IS NULL
+    AND source_file IS NOT NULL
+)
+DELETE FROM activities a
+USING ranked r
+WHERE a.id = r.id
+  AND r.rn > 1;
+
+-- 2) 建唯一索引（数据库硬防重）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_unique_source
+  ON activities(user_id, source_file, activity_type, date)
+  WHERE source_file IS NOT NULL AND parent_id IS NULL;
+
+COMMIT;
+```
+
+### 执行后验证
+
+```sql
+-- A. 应该返回 0 行（代表已无重复）
+SELECT user_id, source_file, activity_type, date, COUNT(*) AS cnt
 FROM activities
-WHERE source_file IS NOT NULL AND parent_id IS NULL
+WHERE parent_id IS NULL
+  AND source_file IS NOT NULL
 GROUP BY user_id, source_file, activity_type, date
 HAVING COUNT(*) > 1;
 
--- 删除重复记录，保留每组最早创建的那条
-DELETE FROM activities
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id,
-      ROW_NUMBER() OVER (
-        PARTITION BY user_id, source_file, activity_type, date
-        ORDER BY created_at ASC
-      ) AS rn
-    FROM activities
-    WHERE source_file IS NOT NULL AND parent_id IS NULL
-  ) sub
-  WHERE rn > 1
-);
+-- B. 应该返回 1 行（代表唯一索引已存在）
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'activities'
+  AND indexname = 'idx_activities_unique_source';
 ```
+
 
 ### 说明
 

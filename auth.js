@@ -635,6 +635,19 @@ function sanitizeText(text) {
 }
 
 /**
+ * 从 notes 中提取 FIT 文件名（兼容旧数据 source_file 为空的情况）
+ * @param {string|null} notes
+ * @returns {string|null}
+ */
+function extractSourceFileFromNotes(notes) {
+  if (!notes || typeof notes !== 'string') return null;
+  const m = notes.match(/^FIT import:\s*(.+)$/i);
+  if (!m || !m[1]) return null;
+  const safe = sanitizeText(m[1]);
+  return safe || null;
+}
+
+/**
  * 完整流程：解析 FIT ArrayBuffer → 存入 Supabase
  * 供 upload.html 调用
  * 
@@ -777,6 +790,7 @@ async function importFitFile(arrayBuffer, fileName, userId, FitSDK, options = {}
  * @returns {Promise<{data: object|null, error: object|null}>}
  */
 async function saveActivity(userId, activityData) {
+  const fallbackSourceFile = extractSourceFileFromNotes(activityData.notes || null);
   const row = {
     user_id: userId,
     parent_id: activityData.parentId || null,
@@ -788,7 +802,7 @@ async function saveActivity(userId, activityData) {
     max_hr: activityData.maxHr ? parseInt(activityData.maxHr) : null,
     calories: activityData.calories ? parseInt(activityData.calories) : null,
     notes: activityData.notes || null,
-    source_file: activityData.sourceFile || null,
+    source_file: activityData.sourceFile || fallbackSourceFile || null,
   };
 
   // ★ 去重保护：对于来自 FIT 文件的顶层记录，先检查是否已存在相同记录
@@ -827,6 +841,23 @@ async function saveActivity(userId, activityData) {
     .single();
 
   if (error) {
+    // 唯一索引冲突：并发重复提交时返回已存在记录而不是抛错
+    if (error.code === '23505' && row.source_file && !row.parent_id) {
+      const { data: existingRow } = await _supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('source_file', row.source_file)
+        .eq('activity_type', row.activity_type)
+        .eq('date', row.date)
+        .is('parent_id', null)
+        .limit(1)
+        .single();
+      if (existingRow) {
+        return { data: existingRow, error: null };
+      }
+    }
+
     console.error('[auth] saveActivity error:', error.message);
     throw error;
   }
