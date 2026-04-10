@@ -948,10 +948,10 @@ async function loadActivities(userId, options = {}) {
 }
 
 /**
- * 对查询结果做客户端去重
- * 对于有 source_file 的记录，按 (source_file, activity_type, date) 分组，每组只保留最早创建的那条。
- * 没有 source_file 的记录（手动录入）不受影响。
- * 输入已按 date DESC, created_at DESC 排序。
+ * 对查询结果做客户端去重（多策略）
+ * 1. 有 source_file → 按 (source_file, activity_type, date) 去重
+ * 2. notes 以 "FIT import:" 开头 → 按 (notes, activity_type, date) 去重
+ * 3. 完全相同的数据指纹 → 按 (activity_type, date, duration_min, distance_m, avg_hr, calories) 去重
  * @param {Array} rows - 数据库查询结果
  * @returns {Array} 去重后的结果
  */
@@ -963,14 +963,33 @@ function deduplicateResultSet(rows) {
   let skipped = 0;
 
   for (const row of rows) {
+    let dominated = false;
+
+    // Strategy 1: source_file key
     if (row.source_file) {
-      const key = row.source_file + '||' + row.activity_type + '||' + row.date;
-      if (seen.has(key)) {
-        skipped++;
-        continue;
-      }
+      const key = 'sf:' + row.source_file + '|' + row.activity_type + '|' + row.date;
+      if (seen.has(key)) { skipped++; continue; }
+      seen.add(key);
+      dominated = true;
+    }
+
+    // Strategy 2: notes-based key (FIT import without source_file)
+    if (!dominated && row.notes && row.notes.startsWith('FIT import:')) {
+      const key = 'notes:' + row.notes + '|' + row.activity_type + '|' + row.date;
+      if (seen.has(key)) { skipped++; continue; }
+      seen.add(key);
+      dominated = true;
+    }
+
+    // Strategy 3: data fingerprint (catches any identical rows)
+    if (!dominated && row.duration_min) {
+      const key = 'data:' + row.activity_type + '|' + row.date + '|' +
+        (row.duration_min || '') + '|' + (row.distance_m || '') + '|' +
+        (row.avg_hr || '') + '|' + (row.calories || '');
+      if (seen.has(key)) { skipped++; continue; }
       seen.add(key);
     }
+
     result.push(row);
   }
 

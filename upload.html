@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>TriFit - Upload Activities</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -1071,20 +1074,34 @@
         limit: 30,
       });
 
-      // ★ 二次去重保护（防止 loadActivities 中的去重因任何原因未生效）
+      // ★ 最终去重防线：在渲染前彻底去重
+      // 策略：用多种 key 组合去重，覆盖 source_file 可能为 null 的情况
       if (activities && activities.length > 0) {
         const before = activities.length;
         const seen = new Set();
         activities = activities.filter(a => {
+          // Key 1: 用 source_file（如果有的话）
           if (a.source_file) {
-            const key = a.source_file + '||' + a.activity_type + '||' + a.date;
+            const key = 'sf:' + a.source_file + '|' + a.activity_type + '|' + a.date;
             if (seen.has(key)) return false;
             seen.add(key);
+            return true;
           }
+          // Key 2: 用 notes 中的 "FIT import:" 信息（备用）
+          if (a.notes && a.notes.startsWith('FIT import:')) {
+            const key = 'notes:' + a.notes + '|' + a.activity_type + '|' + a.date;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }
+          // Key 3: 对于完全相同的记录（同类型、日期、时长、距离），也去重
+          const numKey = 'data:' + a.activity_type + '|' + a.date + '|' + (a.duration_min || '') + '|' + (a.distance_m || '') + '|' + (a.avg_hr || '') + '|' + (a.calories || '');
+          if (seen.has(numKey)) return false;
+          seen.add(numKey);
           return true;
         });
         if (activities.length < before) {
-          console.log('[Upload] Backup dedup filtered', before - activities.length, 'extra duplicates');
+          console.log('[Upload] Dedup filtered', before - activities.length, 'duplicates →', activities.length, 'unique');
         }
       }
 
