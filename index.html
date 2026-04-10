@@ -413,13 +413,13 @@
     document.getElementById('todayDate').textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
     // =============================================
-    // 从 Supabase 加载数据 (fallback localStorage)
+    // 从 Supabase 加载数据
     // =============================================
     async function loadDashboardData() {
-      // 加载比赛数据
+      // 加载比赛数据（auth.js 内部仅使用按用户隔离缓存兜底）
       const raceData = currentUser
-        ? (await loadRace(currentUser.id) || JSON.parse(localStorage.getItem('trifit_race') || 'null'))
-        : JSON.parse(localStorage.getItem('trifit_race') || 'null');
+        ? (await loadRace(currentUser.id))
+        : null;
 
       if (raceData && raceData.date) {
         const raceDate = new Date(raceData.date + 'T00:00:00');
@@ -570,12 +570,10 @@
     }
 
     async function applyRainWarning(desc) {
-      // 从 Supabase 加载装备数据 (fallback localStorage)
-      let equipment;
+      // 从 Supabase 加载装备数据（auth.js 内部仅使用按用户隔离缓存兜底）
+      let equipment = {};
       if (currentUser) {
-        equipment = await loadEquipment(currentUser.id) || JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
-      } else {
-        equipment = JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+        equipment = await loadEquipment(currentUser.id) || {};
       }
       const hasTrainer = equipment.hasTrainer || false;
       const hasTreadmill = equipment.hasTreadmill || false;

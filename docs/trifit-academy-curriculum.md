@@ -382,6 +382,30 @@ UI (React Components)
 - [ ] AGENTS.md 更新（指向 architecture.md + 新 conventions）
 - [ ] 代码提交 ≥ 10 次
 
+### 🧾 当前项目对照（2026-04-10）
+
+基于当前仓库实际状态（TriFit 现为“静态前端 + Supabase + Express 天气代理”架构）对照第 385 行前任务，尚未执行/未达标项如下：
+
+1. **M1：`PROMPT_HISTORY.md` 缺失**
+   - 课程要求记录三种 Prompt 策略对比（Naive / Plan-Tweak-Execute / Detailed Context）。
+   - 当前仓库未找到 `PROMPT_HISTORY.md`。
+
+2. **M2：项目级 README 的 API 配置说明不完整**
+   - 课程要求“README 说明如何配置 API”。
+   - 当前仅有 `server/README.md`，仓库根目录缺少项目级 `README.md`（建议补齐）。
+
+3. **M3：按课程原要求的 Next.js API Routes 未落地**
+   - 课程要求 `POST /api/activities`、`GET /api/activities`（Next.js App Router）。
+   - 当前仓库未采用该路径（无 `src/app/api` / `route.ts`）。
+
+4. **M3：活动列表“支持编辑”前台入口未完成**
+   - 课程要求“列表支持删除、编辑”。
+   - 当前已具备删除能力；虽有 `updateActivity` 能力，但页面未见明确编辑入口流程。
+
+### 备注
+- 可判定已完成：`docs/architecture.md` 已创建、`.env.example` 与 `.gitignore` 已配置、代码提交次数已超过 10 次。
+- 无法从代码直接判定：阅读任务是否完成、Landing Page 当前线上可访问性（需人工确认）。
+
 ---
 
 ## Milestone 4: 数据可视化 — Dashboard

@@ -222,13 +222,13 @@
     }
 
     // =============================================
-    // 从 Supabase 加载数据 (fallback localStorage)
+    // 从 Supabase 加载数据
     // =============================================
     async function loadFromSupabase() {
-      // 优先从 Supabase 加载，失败时 fallback 到 localStorage
-      const r = await loadRace(currentUser.id) || JSON.parse(localStorage.getItem('trifit_race') || '{}');
-      const p = await loadProfile(currentUser.id) || JSON.parse(localStorage.getItem('trifit_profile') || '{}');
-      const eq = await loadEquipment(currentUser.id) || JSON.parse(localStorage.getItem('trifit_equipment') || '{}');
+      // auth.js 内部仅使用按用户隔离缓存兜底
+      const r = await loadRace(currentUser.id) || {};
+      const p = await loadProfile(currentUser.id) || {};
+      const eq = await loadEquipment(currentUser.id) || {};
 
       populateForm(r, p, eq);
     }
@@ -347,9 +347,11 @@
     // =============================================
     document.getElementById('resetBtn').addEventListener('click', () => {
       if (confirm('Reset all settings? This cannot be undone.')) {
-        localStorage.removeItem('trifit_race');
-        localStorage.removeItem('trifit_profile');
-        localStorage.removeItem('trifit_equipment');
+        if (currentUser?.id) {
+          localStorage.removeItem(`trifit_race:${currentUser.id}`);
+          localStorage.removeItem(`trifit_profile:${currentUser.id}`);
+          localStorage.removeItem(`trifit_equipment:${currentUser.id}`);
+        }
         document.getElementById('setupForm').reset();
         document.getElementById('zonePreview').classList.add('hidden');
       }

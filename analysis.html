@@ -390,7 +390,7 @@
       // 2. Charts
       renderVolumeChart(topActivities, allActivities);
       renderPaceTrendChart(runData);
-      renderHrZonesChart(allActivities);
+      await renderHrZonesChart(allActivities);
       renderDisciplineChart(swimData, bikeData, runData, strengthData, otherData);
 
       // 3. Race Prediction
@@ -717,7 +717,7 @@
     // =============================================
     // 4. Heart Rate Zones
     // =============================================
-    function renderHrZonesChart(allActivities) {
+    async function renderHrZonesChart(allActivities) {
       const emptyEl = document.getElementById('hrEmpty');
       const canvas = document.getElementById('hrZonesChart');
 
@@ -737,13 +737,12 @@
       emptyEl.classList.add('hidden');
       canvas.style.display = '';
 
-      // Determine max HR: from profile or estimate (220 - age or default 190)
+      // Determine max HR: from user profile or estimate
       let maxHr = 190; // default
-      // Try to get from profile cache
-      try {
-        const profile = JSON.parse(localStorage.getItem('trifit_profile') || 'null');
-        if (profile && profile.maxHR) maxHr = parseInt(profile.maxHR);
-      } catch (e) { /* ignore */ }
+      const profile = await loadProfile(currentUserId);
+      if (profile && profile.maxHR) {
+        maxHr = parseInt(profile.maxHR) || 190;
+      }
 
       // Zone boundaries (% of max HR)
       const zones = [

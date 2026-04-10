@@ -29,6 +29,36 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // =============================================
+// 本地缓存（按用户隔离，防跨账号串数据）
+// =============================================
+const CACHE_KEYS = {
+  profile: 'trifit_profile',
+  race: 'trifit_race',
+  equipment: 'trifit_equipment',
+};
+
+function cacheKey(baseKey, userId) {
+  return `${baseKey}:${userId}`;
+}
+
+function setUserCache(baseKey, userId, value) {
+  if (!userId) return;
+  localStorage.setItem(cacheKey(baseKey, userId), JSON.stringify(value));
+}
+
+function getUserCache(baseKey, userId) {
+  if (!userId) return null;
+  return JSON.parse(localStorage.getItem(cacheKey(baseKey, userId)) || 'null');
+}
+
+function removeUserCache(userId) {
+  if (!userId) return;
+  localStorage.removeItem(cacheKey(CACHE_KEYS.profile, userId));
+  localStorage.removeItem(cacheKey(CACHE_KEYS.race, userId));
+  localStorage.removeItem(cacheKey(CACHE_KEYS.equipment, userId));
+}
+
+// =============================================
 // 会话管理
 // =============================================
 
@@ -118,6 +148,12 @@ async function signIn(email, password) {
  * 登出
  */
 async function signOut() {
+  const { data } = await _supabase.auth.getUser();
+  const userId = data?.user?.id || null;
+
+  // 仅清理当前用户缓存，避免遗留敏感信息
+  removeUserCache(userId);
+
   await _supabase.auth.signOut();
   window.location.href = 'login.html';
 }
@@ -280,14 +316,14 @@ async function loadProfile(userId) {
         bikeSpeed: data.bike_speed ? String(data.bike_speed) : '',
         runPace: data.run_pace || '',
       };
-      // 更新 localStorage 缓存
-      localStorage.setItem('trifit_profile', JSON.stringify(profile));
+      // 更新本地缓存（按用户隔离）
+      setUserCache(CACHE_KEYS.profile, userId, profile);
       return profile;
     }
     return null;
   } catch (e) {
-    console.warn('[auth] loadProfile failed, using localStorage fallback:', e.message);
-    return JSON.parse(localStorage.getItem('trifit_profile') || 'null');
+    console.warn('[auth] loadProfile failed, using scoped local cache fallback:', e.message);
+    return getUserCache(CACHE_KEYS.profile, userId);
   }
 }
 
@@ -337,8 +373,8 @@ async function saveRace(userId, raceData) {
     }
   }
 
-  // 同步 localStorage 缓存
-  localStorage.setItem('trifit_race', JSON.stringify(raceData));
+  // 同步本地缓存（按用户隔离）
+  setUserCache(CACHE_KEYS.race, userId, raceData);
 }
 
 /**
@@ -370,13 +406,13 @@ async function loadRace(userId) {
         customBike: data.custom_bike || '',
         customRun: data.custom_run || '',
       };
-      localStorage.setItem('trifit_race', JSON.stringify(race));
+      setUserCache(CACHE_KEYS.race, userId, race);
       return race;
     }
     return null;
   } catch (e) {
-    console.warn('[auth] loadRace failed, using localStorage fallback:', e.message);
-    return JSON.parse(localStorage.getItem('trifit_race') || 'null');
+    console.warn('[auth] loadRace failed, using scoped local cache fallback:', e.message);
+    return getUserCache(CACHE_KEYS.race, userId);
   }
 }
 
@@ -446,13 +482,13 @@ async function loadEquipment(userId) {
         hasTrainer: data.has_trainer || false,
         hasTreadmill: data.has_treadmill || false,
       };
-      localStorage.setItem('trifit_equipment', JSON.stringify(equip));
+      setUserCache(CACHE_KEYS.equipment, userId, equip);
       return equip;
     }
     return null;
   } catch (e) {
-    console.warn('[auth] loadEquipment failed, using localStorage fallback:', e.message);
-    return JSON.parse(localStorage.getItem('trifit_equipment') || 'null');
+    console.warn('[auth] loadEquipment failed, using scoped local cache fallback:', e.message);
+    return getUserCache(CACHE_KEYS.equipment, userId);
   }
 }
 
@@ -1354,9 +1390,9 @@ async function migrateLocalStorageData(userId) {
   if (localStorage.getItem(migrationKey)) return; // 已迁移过
 
   try {
-    const localRace = JSON.parse(localStorage.getItem('trifit_race') || 'null');
-    const localProfile = JSON.parse(localStorage.getItem('trifit_profile') || 'null');
-    const localEquipment = JSON.parse(localStorage.getItem('trifit_equipment') || 'null');
+    const localRace = getUserCache(CACHE_KEYS.race, userId);
+    const localProfile = getUserCache(CACHE_KEYS.profile, userId);
+    const localEquipment = getUserCache(CACHE_KEYS.equipment, userId);
 
     // 只有有数据时才迁移
     const hasData = localRace || localProfile || localEquipment;
